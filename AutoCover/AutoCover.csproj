@@ -4,11 +4,11 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{2ABFFDCA-C12A-4AFF-8D93-75C06C7BCED1}</ProjectGuid>
+    <ProjectGuid>{F6ADF2A6-2F55-4402-9DEE-89F5493208C7}</ProjectGuid>
     <ProjectTypeGuids>{82b43b9b-a64c-4715-b499-d71e9ca2bd60};{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>AutoCover</RootNamespace>
+    <RootNamespace>SimoneGrignola.AutoCover</RootNamespace>
     <AssemblyName>AutoCover</AssemblyName>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>Key.snk</AssemblyOriginatorKeyFile>
@@ -51,6 +51,10 @@
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="System.Xaml" />
   </ItemGroup>
   <ItemGroup>
     <COMReference Include="EnvDTE">
@@ -109,6 +113,10 @@
     </COMReference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="MyControl.xaml.cs">
+      <DependentUpon>MyControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MyToolWindow.cs" />
     <Compile Include="Guids.cs" />
     <Compile Include="Resources.Designer.cs">
       <AutoGen>True</AutoGen>
@@ -118,6 +126,7 @@
     <Compile Include="GlobalSuppressions.cs" />
     <Compile Include="AutoCoverPackage.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="PkgCmdID.cs" />
     <Compile Include="SolutionRunner.cs" />
     <Compile Include="Utils.cs" />
     <Compile Include="Vstst.cs" />
@@ -142,9 +151,28 @@
     <None Include="Key.snk" />
   </ItemGroup>
   <ItemGroup>
+    <VSCTCompile Include="AutoCover.vsct">
+      <ResourceName>Menus.ctmenu</ResourceName>
+    </VSCTCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Images_32bit.bmp" />
+    <None Include="Resources\Images_24bit.bmp" />
+  </ItemGroup>
+  <ItemGroup>
     <Content Include="Resources\Package.ico" />
   </ItemGroup>
   <ItemGroup>
+    <Page Include="MyControl.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Coverage.Counter\Coverage.Counter.csproj">
+      <Project>{06AADE13-67EB-451C-844B-95ACAE94068C}</Project>
+      <Name>Coverage.Counter</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Coverage\Coverage.csproj">
       <Project>{6C574A19-5A67-485D-84B1-5569BEB1601A}</Project>
       <Name>Coverage</Name>
@@ -155,6 +183,12 @@
   </PropertyGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <Import Project="$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v10.0\VSSDK\Microsoft.VsSDK.targets" />
+  <PropertyGroup>
+    <PreBuildEvent>REM Nastz workaround
+if $(ConfigurationName) == Debug (
+    del $(TargetDir)*.dll
+)</PreBuildEvent>
+  </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

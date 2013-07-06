@@ -1,10 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Vsix Version="1.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2010">
-  <Identifier Id="90257b84-827f-4bd2-bfdc-b39a67c5d5b1">
+  <Identifier Id="1b158639-badf-49be-8825-c3aabb5fb6f8">
     <Name>AutoCover</Name>
     <Author>Simone Grignola</Author>
     <Version>1.0</Version>
-    <Description xml:space="preserve">Continuous testing for Visual Studio</Description>
+    <Description xml:space="preserve">Continuous testing</Description>
     <Locale>1033</Locale>
     <InstalledByMsi>false</InstalledByMsi>
     <SupportedProducts>

@@ -4,7 +4,7 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{57ABF7FB-C2CD-409C-BC79-8CC406651DFA}</ProjectGuid>
+    <ProjectGuid>{564DC450-1522-4BC5-9BE1-B9557FBDAF00}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>AutoCover_IntegrationTests</RootNamespace>
@@ -54,6 +54,8 @@
     <!--<Compile Include="Properties\AssemblyInfo.cs" />-->
     <!---->
     <!---->
+    <Compile Include="ToolWindowTest.cs" />
+    <!---->
     <!---->
     <Compile Include="PackageTest.cs" />
     <Compile Include="IntegrationTest Library\DialogboxPurger.cs" />
@@ -69,7 +71,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\AutoCover.csproj">
-      <Project>{2ABFFDCA-C12A-4AFF-8D93-75C06C7BCED1}</Project>
+      <Project>{F6ADF2A6-2F55-4402-9DEE-89F5493208C7}</Project>
       <Name>AutoCover</Name>
     </ProjectReference>
   </ItemGroup>
