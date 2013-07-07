@@ -17,7 +17,7 @@ using Microsoft.VsSDK.UnitTestLibrary;
 using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VSSDK.Tools.VsIdeTesting;
-using SimoneGrignola.AutoCover;
+using AutoCover;
 
 namespace AutoCover_UnitTests.MyToolWindowTest
 {

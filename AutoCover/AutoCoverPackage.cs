@@ -107,18 +107,7 @@ namespace SimoneGrignola.AutoCover
 
         void customBuildEndHandler(vsBuildScope Scope, vsBuildAction Action)
         {
-            Window window = _DTE.Windows.Item(EnvDTE.Constants.vsWindowKindOutput);
-            OutputWindow outputWindow = (OutputWindow)window.Object;
-            outputWindow.ActivePane.Activate();
-            try
-            {
-                SolutionRunner.CheckSolution(_DTE.Solution);
-                outputWindow.ActivePane.OutputString("AutoCover: Tests ok!");
-            }
-            catch (Exception ex)
-            {
-                outputWindow.ActivePane.OutputString("AutoCover: " + ex.Message);
-            }
+            SolutionRunner.CheckSolution(_DTE.Solution);
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="SimoneGrignola.AutoCover.MyControl"
+﻿<UserControl x:Class="AutoCover.AutoCoverMainView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -9,9 +9,15 @@
              Name="MyToolWindow"
              Background="{DynamicResource {x:Static vsfx:VsBrushes.ToolWindowBackgroundKey}}">
     <Grid>
-        <StackPanel Orientation="Vertical">
-            <TextBlock Margin="10" HorizontalAlignment="Center" Foreground="{DynamicResource {x:Static vsfx:VsBrushes.ToolWindowTextKey}}">This is a toolwindow with WPF content</TextBlock>
-            <Button Content="_Click Me!" Width="80" Height="80" Name="button1" Click="button1_Click" />
-        </StackPanel>
+        <ListView Margin="10" ItemsSource="{Binding Path=Tests}">
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Header="Name" DisplayMemberBinding="{Binding Name}" />
+                    <GridViewColumn Header="Result" DisplayMemberBinding="{Binding Result}" />
+                    <GridViewColumn Header="Message" DisplayMemberBinding="{Binding Message}" />
+                </GridView>
+            </ListView.View>
+        </ListView>
+
     </Grid>
 </UserControl>

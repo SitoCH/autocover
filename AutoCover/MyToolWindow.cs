@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.Shell;
 
-namespace SimoneGrignola.AutoCover
+namespace AutoCover
 {
     /// <summary>
     /// This class implements the tool window exposed by this package and hosts a user control.
@@ -41,7 +41,7 @@ namespace SimoneGrignola.AutoCover
             // This is the user control hosted by the tool window; Note that, even if this class implements IDisposable,
             // we are not calling Dispose on this object. This is because ToolWindowPane calls Dispose on 
             // the object returned by the Content property.
-            base.Content = new MyControl();
+            base.Content = new AutoCoverMainView() { DataContext = new AutoCoverMainViewModel() };
         }
     }
 }

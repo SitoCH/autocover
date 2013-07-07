@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using System.IO;
 using EnvDTE;
 using Coverage.Common;
@@ -11,34 +12,47 @@ using Coverage;
 using System.Diagnostics;
 using System.Xml.Serialization;
 using System.Xml;
+using GalaSoft.MvvmLight.Messaging;
 
 namespace AutoCover
 {
     public static class SolutionRunner
     {
+        private static object _lock = new object();
+
         public static void CheckSolution(Solution solution)
         {
             var lastBuildState = solution.SolutionBuild.LastBuildInfo;
             if (lastBuildState == 0)
             {
-                var tempFolder = Path.Combine(Path.GetTempPath(), "AutoCover", Path.GetFileNameWithoutExtension(solution.FullName));
-                if (Directory.Exists(tempFolder))
-                    Directory.Delete(tempFolder, true);
-                Directory.CreateDirectory(tempFolder);
-                foreach (Project project in solution.Projects)
+                var t = Task.Factory.StartNew(() =>
                 {
-                    if (project.Name.Contains("Test")) // TODO Detect the right project type
+                    lock (_lock)
                     {
-                        var testPath = Path.Combine(tempFolder, project.Name);
-                        InstrumentAndTest(project, testPath);
-                        ParseTests(testPath);
+                        var tempFolder = Path.Combine(Path.GetTempPath(), "AutoCover", Path.GetFileNameWithoutExtension(solution.FullName));
+                        if (Directory.Exists(tempFolder))
+                            Directory.Delete(tempFolder, true);
+                        Directory.CreateDirectory(tempFolder);
+                        var allTests = new List<UnitTest>();
+
+                        foreach (Project project in solution.Projects)
+                        {
+                            if (project.Name.Contains("Test")) // TODO Detect the right project type
+                            {
+                                var testPath = Path.Combine(tempFolder, project.Name);
+                                InstrumentAndTest(project, testPath);
+                                allTests.AddRange(ParseTests(testPath));
+                            }
+                        }
+                        return allTests;
                     }
-                }
+                }).ContinueWith(ct => Messenger.Default.Send(new TestsResultsMessage(ct.Result)));
             }
         }
 
-        private static void ParseTests(string testPath)
+        private static List<UnitTest> ParseTests(string testPath)
         {
+            var results = new List<UnitTest>();
             var fileInfo = new FileInfo(Path.Combine(testPath, "test.trx"));
             var fileStreamReader = new StreamReader(fileInfo.FullName);
             var xmlSer = new XmlSerializer(typeof(TestRunType));
@@ -56,6 +70,9 @@ namespace AutoCover
                     if (unitTestResultType == null)
                         continue;
 
+                    var unitTest = new UnitTest { Name = unitTestResultType.testName };
+                    results.Add(unitTest);
+
                     var outcome = unitTestResultType.outcome;
                     if (outcome != "Failed")
                         continue;
@@ -67,9 +84,12 @@ namespace AutoCover
                     var errorInfo = outputType.ErrorInfo;
                     var message = errorInfo.Message;
                     var text = ((XmlNode[])message)[0].InnerText;
-                    throw new Exception(text);
+
+                    unitTest.Result = UnitTestResult.Failed;
+                    unitTest.Message = text;
                 }
             }
+            return results;
         }
 
         private static void InstrumentAndTest(Project project, string testPath)
@@ -83,7 +103,7 @@ namespace AutoCover
             var outputBuilder = new StringBuilder();
             var pInfo = new ProcessStartInfo();
             pInfo.FileName = Utils.GetMSTestPath();
-            pInfo.Arguments = " /testcontainer:" + project.Name + ".dll /resultsfile:test.trx"; // TODO Get the righe assembly name
+            pInfo.Arguments = " /testcontainer:" + project.Name + ".dll /resultsfile:test.trx"; // TODO Get the right assembly name
             pInfo.WorkingDirectory = testPath;
             pInfo.RedirectStandardOutput = true;
             pInfo.UseShellExecute = false;

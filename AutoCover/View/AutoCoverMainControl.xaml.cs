@@ -12,14 +12,14 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 
-namespace SimoneGrignola.AutoCover
+namespace AutoCover
 {
     /// <summary>
     /// Interaction logic for MyControl.xaml
     /// </summary>
-    public partial class MyControl : UserControl
+    public partial class AutoCoverMainView : UserControl
     {
-        public MyControl()
+        public AutoCoverMainView()
         {
             InitializeComponent();
         }
