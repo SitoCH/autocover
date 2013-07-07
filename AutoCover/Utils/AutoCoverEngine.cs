@@ -16,7 +16,7 @@ using GalaSoft.MvvmLight.Messaging;
 
 namespace AutoCover
 {
-    public static class SolutionRunner
+    public static class AutoCoverEngine
     {
         private static object _lock = new object();
 
@@ -29,6 +29,7 @@ namespace AutoCover
                 {
                     lock (_lock)
                     {
+                        Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Running));
                         var tempFolder = Path.Combine(Path.GetTempPath(), "AutoCover", Path.GetFileNameWithoutExtension(solution.FullName));
                         if (Directory.Exists(tempFolder))
                             Directory.Delete(tempFolder, true);
@@ -40,13 +41,18 @@ namespace AutoCover
                             if (project.Name.Contains("Test")) // TODO Detect the right project type
                             {
                                 var testPath = Path.Combine(tempFolder, project.Name);
-                                InstrumentAndTest(project, testPath);
+                                Instrument(project, testPath);
+                                Test(project, testPath);
                                 allTests.AddRange(ParseTests(testPath));
                             }
                         }
                         return allTests;
                     }
-                }).ContinueWith(ct => Messenger.Default.Send(new TestsResultsMessage(ct.Result)));
+                }).ContinueWith(ct =>
+                    {
+                        Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Idle));
+                        Messenger.Default.Send(new TestsResultsMessage(ct.Result));
+                    });
             }
         }
 
@@ -92,14 +98,17 @@ namespace AutoCover
             return results;
         }
 
-        private static void InstrumentAndTest(Project project, string testPath)
+        private static void Instrument(Project project, string testPath)
         {
             var basePath = project.Properties.Item("FullPath").Value.ToString();
             var outputPath = project.ConfigurationManager.ActiveConfiguration.Properties.Item("OutputPath").Value.ToString();
             var dllsPath = Path.Combine(basePath, outputPath);
             Utils.Copy(dllsPath, testPath);
             Runner.Run(testPath, GetAssemblies(testPath));
+        }
 
+        private static void Test(Project project, string testPath)
+        {
             var outputBuilder = new StringBuilder();
             var pInfo = new ProcessStartInfo();
             pInfo.FileName = Utils.GetMSTestPath();

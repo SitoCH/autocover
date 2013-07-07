@@ -14,4 +14,19 @@ namespace AutoCover
             Tests = tests;
         }
     }
+
+    public enum AutoCoverEngineStatus
+    {
+        Idle, Running
+    }
+
+    public class AutoCoverEngineStatusMessage
+    {
+        public AutoCoverEngineStatus Status { get; private set; }
+
+        public AutoCoverEngineStatusMessage(AutoCoverEngineStatus status)
+        {
+            Status = status;
+        }
+    }
 }

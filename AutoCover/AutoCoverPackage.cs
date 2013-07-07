@@ -107,7 +107,7 @@ namespace SimoneGrignola.AutoCover
 
         void customBuildEndHandler(vsBuildScope Scope, vsBuildAction Action)
         {
-            SolutionRunner.CheckSolution(_DTE.Solution);
+            AutoCoverEngine.CheckSolution(_DTE.Solution);
         }
     }
 }

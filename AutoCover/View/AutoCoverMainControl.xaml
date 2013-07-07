@@ -9,7 +9,13 @@
              Name="MyToolWindow"
              Background="{DynamicResource {x:Static vsfx:VsBrushes.ToolWindowBackgroundKey}}">
     <Grid>
-        <ListView Margin="10" ItemsSource="{Binding Path=Tests}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <ProgressBar Margin="10" Height="5" 
+                     IsIndeterminate="True" Visibility="{Binding Path=IsEngineRunningVisibility}" />
+        <ListView Grid.Row="1" Margin="10" ItemsSource="{Binding Path=Tests}">
             <ListView.View>
                 <GridView>
                     <GridViewColumn Header="Name" DisplayMemberBinding="{Binding Name}" />
