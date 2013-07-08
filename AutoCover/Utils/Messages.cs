@@ -17,16 +17,23 @@ namespace AutoCover
 
     public enum AutoCoverEngineStatus
     {
-        Idle, Running
+        Idle, Building, Testing
     }
 
     public class AutoCoverEngineStatusMessage
     {
         public AutoCoverEngineStatus Status { get; private set; }
+        public string Message { get; private set; }
 
         public AutoCoverEngineStatusMessage(AutoCoverEngineStatus status)
         {
             Status = status;
+        }
+
+        public AutoCoverEngineStatusMessage(AutoCoverEngineStatus status, string message)
+            : this(status)
+        {
+            Message = message;
         }
     }
 }

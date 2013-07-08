@@ -11,16 +11,18 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <ProgressBar Margin="10" Height="5" 
+        <TextBlock Margin="10,10,10,5" Text="{Binding Path=EngineStatusLabel}" />
+        <ProgressBar Grid.Row="1" Margin="10,5,10,5" Height="5" 
                      IsIndeterminate="True" Visibility="{Binding Path=IsEngineRunningVisibility}" />
-        <ListView Grid.Row="1" Margin="10" ItemsSource="{Binding Path=Tests}">
+        <ListView Grid.Row="2" Margin="10,5,10,10" ItemsSource="{Binding Path=Tests}">
             <ListView.View>
                 <GridView>
-                    <GridViewColumn Header="Name" DisplayMemberBinding="{Binding Name}" />
+                    <GridViewColumn Header="Name" Width="300" DisplayMemberBinding="{Binding Name}" />
                     <GridViewColumn Header="Result" DisplayMemberBinding="{Binding Result}" />
-                    <GridViewColumn Header="Message" DisplayMemberBinding="{Binding Message}" />
+                    <GridViewColumn Header="Message" Width="600" DisplayMemberBinding="{Binding Message}" />
                 </GridView>
             </ListView.View>
         </ListView>

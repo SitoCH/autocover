@@ -11,12 +11,20 @@ namespace AutoCover
     public class AutoCoverMainViewModel : ViewModelBase
     {
         private List<UnitTest> _tests;
-        private bool _isEngineRunning;
+        private AutoCoverEngineStatus _engineStatus;
+        private string _engineMessage;
 
         public AutoCoverMainViewModel()
         {
             Messenger.Default.Register<TestsResultsMessage>(this, m => Tests = m.Tests);
-            Messenger.Default.Register<AutoCoverEngineStatusMessage>(this, m => IsEngineRunning = m.Status != AutoCoverEngineStatus.Idle);
+            Messenger.Default.Register<AutoCoverEngineStatusMessage>(this, m =>
+                {
+                    _engineStatus = m.Status;
+                    _engineMessage = m.Message;
+                    RaisePropertyChanged("IsEngineRunning");
+                    RaisePropertyChanged("IsEngineRunningVisibility");
+                    RaisePropertyChanged("EngineStatusLabel");
+                });
         }
 
         public List<UnitTest> Tests
@@ -24,25 +32,29 @@ namespace AutoCover
             get { return _tests; }
             set
             {
-                _tests = value;
+                _tests = value != null ? value.OrderByDescending(x => x.Result).ToList() : value;
                 RaisePropertyChanged("Tests");
+            }
+        }
+
+        public string EngineStatusLabel
+        {
+            get
+            {
+                if (string.IsNullOrWhiteSpace(_engineMessage))
+                    return _engineStatus.ToString();
+                return string.Format("{0}: {1}", _engineStatus, _engineMessage);
             }
         }
 
         public bool IsEngineRunning
         {
-            get { return _isEngineRunning; }
-            private set
-            {
-                _isEngineRunning = value;
-                RaisePropertyChanged("IsEngineRunning");
-                RaisePropertyChanged("IsEngineRunningVisibility");
-            }
+            get { return _engineStatus != AutoCoverEngineStatus.Idle; }
         }
 
         public Visibility IsEngineRunningVisibility
         {
-            get { return _isEngineRunning ? Visibility.Visible : Visibility.Hidden; }
+            get { return IsEngineRunning ? Visibility.Visible : Visibility.Hidden; }
         }
     }
 }

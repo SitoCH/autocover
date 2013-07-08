@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
@@ -41,7 +42,8 @@ namespace SimoneGrignola.AutoCover
     public sealed class AutoCoverPackage : Package
     {
         private DTE2 _DTE;
-        private BuildEvents _buildEvents;
+        private DocumentEvents _documentEvents;
+        private ITestManagement _testManagement;
 
         /// <summary>
         /// Default constructor of the package.
@@ -77,7 +79,6 @@ namespace SimoneGrignola.AutoCover
 
         /////////////////////////////////////////////////////////////////////////////
         // Overriden Package Implementation
-        #region Package Members
 
         /// <summary>
         /// Initialization of the package; this method is called right after the package is sited, so this is the place
@@ -99,25 +100,22 @@ namespace SimoneGrignola.AutoCover
             }
 
             _DTE = GetGlobalService(typeof(SDTE)) as DTE2;
-            if (_DTE != null)
+            _testManagement = GetService(typeof(STestManagement)) as ITestManagement;
+            if (_DTE != null && _testManagement != null)
             {
-                _buildEvents = _DTE.Events.BuildEvents;
-                _buildEvents.OnBuildDone += customBuildEndHandler;
+                _documentEvents = _DTE.Events.DocumentEvents;
+                _documentEvents.DocumentSaved += DocumentEvents_DocumentSaved;
             }
         }
-        #endregion
 
-        void customBuildEndHandler(vsBuildScope Scope, vsBuildAction Action)
+        void DocumentEvents_DocumentSaved(Document document)
         {
-            var testMgmt = GetService(typeof(STestManagement)) as ITestManagement;
-            if (testMgmt != null)
+            var tmi = _testManagement.TmiInstance;
+            var config = tmi.GetTestRunConfiguration(tmi.ActiveTestRunConfigurationId);
+            if (config != null)
             {
-                var tmi = testMgmt.TmiInstance;
-                var config = tmi.GetTestRunConfiguration(tmi.ActiveTestRunConfigurationId);
-                if (config != null)
-                {
-                    AutoCoverEngine.CheckSolution(_DTE.Solution, config.Storage);
-                }
+                var tests = tmi.GetTests().ToList();
+                AutoCoverEngine.CheckSolution(_DTE.Solution, document, tests, config.Storage);
             }
         }
     }
