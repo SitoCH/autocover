@@ -133,7 +133,7 @@ namespace AutoCover
 
         private static IEnumerable<string> GetAssemblies(string fullPath)
         {
-            return Directory.GetFiles(fullPath).Where(file => (Path.GetExtension(file) == ".dll" || Path.GetExtension(file) == ".exe"));
+            return Directory.GetFiles(fullPath).Where(file => (Path.GetExtension(file) == ".dll" || Path.GetExtension(file) == ".exe") && File.Exists(Path.ChangeExtension(file, "pdb")));
         }
     }
 }
