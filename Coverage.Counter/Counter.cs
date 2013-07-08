@@ -117,7 +117,7 @@ namespace Coverage
 					{
 						var moduleId = pair.Key;
 						var moduleHits = pair.Value;
-						var xModule = xDoc.Descendants("module").Where(el => el.Attribute("moduleId").Value == moduleId).First();
+						var xModule = xDoc.Descendants("module").First(el => el.Attribute("moduleId").Value == moduleId);
 
 						var counter = 0;
 						foreach (var pt in xModule.Descendants("seqpnt"))

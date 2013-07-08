@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO;
+using System.Xml.Linq;
 using EnvDTE;
 using Coverage.Common;
 using Coverage.Report;
@@ -36,7 +37,7 @@ namespace AutoCover
                                 Directory.Delete(tempFolder, true);
                             Directory.CreateDirectory(tempFolder);
                             var allTests = new List<UnitTest>();
-
+                            var coverageResult = new CoverageResult();
                             foreach (Project project in solution.Projects)
                             {
                                 if (project.Name.Contains("Test")) // TODO Detect the right project type
@@ -45,6 +46,7 @@ namespace AutoCover
                                     Instrument(project, testPath);
                                     Test(project, testPath, testSettingsPath);
                                     allTests.AddRange(ParseTests(testPath));
+                                    ParseCoverageResults(testPath, coverageResult);
                                 }
                             }
                             return allTests;
@@ -54,6 +56,28 @@ namespace AutoCover
                             Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Idle));
                             Messenger.Default.Send(new TestsResultsMessage(ct.Result));
                         });
+            }
+        }
+
+        private static void ParseCoverageResults(string testPath, CoverageResult coverageResult)
+        {
+            var coverageFile = Path.Combine(testPath, "coverage.xml");
+            var xDoc = XDocument.Load(new XmlTextReader(coverageFile));
+            foreach (var module in xDoc.Descendants("module"))
+            {
+                foreach (var pt in module.Descendants("seqpnt"))
+                {
+                    var document = pt.Attribute("document").Value;
+                    var cb = new CodeBlock
+                        {
+                            VisitCount = int.Parse(pt.Attribute("visitcount").Value),
+                            Line = int.Parse(pt.Attribute("line").Value),
+                            Column = int.Parse(pt.Attribute("column").Value),
+                            EndLine = int.Parse(pt.Attribute("endline").Value),
+                            EndColumn = int.Parse(pt.Attribute("endcolumn").Value)
+                        };
+                    coverageResult.GetCodeBlocksFromDocument(document).Add(cb);
+                }
             }
         }
 
@@ -118,7 +142,7 @@ namespace AutoCover
             var pInfo = new ProcessStartInfo
                 {
                     FileName = msTestPathExe,
-                    Arguments = " /nologo /testcontainer:" + Path.Combine(testPath, project.Name) + ".dll /resultsfile:" + testResultsPath + " /testsettings:" + testSettingsPath,
+                    Arguments = " /nologo /testcontainer:\"" + Path.Combine(testPath, project.Name) + ".dll\" /resultsfile:\"" + testResultsPath + "\" /testsettings:\"" + testSettingsPath + "\"",
                     WorkingDirectory = Path.GetDirectoryName(msTestPathExe),
                     RedirectStandardOutput = true,
                     UseShellExecute = false,

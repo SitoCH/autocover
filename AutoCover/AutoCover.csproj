@@ -71,6 +71,7 @@
     <Reference Include="System.Xml" />
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
+    <Reference Include="System.Xml.Linq" />
     <Reference Include="WindowsBase" />
     <Reference Include="System.Xaml" />
   </ItemGroup>
@@ -132,6 +133,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Coverage\CoverageParser.cs" />
+    <Compile Include="Utils\CoverageResult.cs" />
     <Compile Include="Utils\Messages.cs" />
     <Compile Include="ViewModel\AutoCoverMainViewModel.cs" />
     <Compile Include="View\AutoCoverMainControl.xaml.cs">
