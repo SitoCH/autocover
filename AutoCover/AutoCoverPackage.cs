@@ -3,6 +3,8 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.ComponentModel.Design;
+using Microsoft.VisualStudio.TestTools.Common;
+using Microsoft.VisualStudio.TestTools.Vsip;
 using Microsoft.Win32;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell.Interop;
@@ -87,16 +89,16 @@ namespace SimoneGrignola.AutoCover
             base.Initialize();
 
             // Add our command handlers for menu (commands must exist in the .vsct file)
-            OleMenuCommandService mcs = GetService(typeof(IMenuCommandService)) as OleMenuCommandService;
+            var mcs = GetService(typeof(IMenuCommandService)) as OleMenuCommandService;
             if (null != mcs)
             {
                 // Create the command for the tool window
-                CommandID toolwndCommandID = new CommandID(GuidList.guidAutoCoverCmdSet, (int)PkgCmdIDList.cmdidAutoCover);
-                MenuCommand menuToolWin = new MenuCommand(ShowToolWindow, toolwndCommandID);
+                var toolwndCommandID = new CommandID(GuidList.guidAutoCoverCmdSet, (int)PkgCmdIDList.cmdidAutoCover);
+                var menuToolWin = new MenuCommand(ShowToolWindow, toolwndCommandID);
                 mcs.AddCommand(menuToolWin);
             }
 
-            _DTE = Package.GetGlobalService(typeof(SDTE)) as DTE2;
+            _DTE = GetGlobalService(typeof(SDTE)) as DTE2;
             if (_DTE != null)
             {
                 _buildEvents = _DTE.Events.BuildEvents;
@@ -107,7 +109,16 @@ namespace SimoneGrignola.AutoCover
 
         void customBuildEndHandler(vsBuildScope Scope, vsBuildAction Action)
         {
-            AutoCoverEngine.CheckSolution(_DTE.Solution);
+            var testMgmt = GetService(typeof(STestManagement)) as ITestManagement;
+            if (testMgmt != null)
+            {
+                var tmi = testMgmt.TmiInstance;
+                var config = tmi.GetTestRunConfiguration(tmi.ActiveTestRunConfigurationId);
+                if (config != null)
+                {
+                    AutoCoverEngine.CheckSolution(_DTE.Solution, config.Storage);
+                }
+            }
         }
     }
 }

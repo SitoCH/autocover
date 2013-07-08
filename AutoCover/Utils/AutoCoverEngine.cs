@@ -13,46 +13,47 @@ using System.Diagnostics;
 using System.Xml.Serialization;
 using System.Xml;
 using GalaSoft.MvvmLight.Messaging;
+using Microsoft.VisualStudio.TestTools.Vsip;
 
 namespace AutoCover
 {
     public static class AutoCoverEngine
     {
-        private static object _lock = new object();
+        private static readonly object _lock = new object();
 
-        public static void CheckSolution(Solution solution)
+        public static void CheckSolution(Solution solution, string testSettingsPath)
         {
             var lastBuildState = solution.SolutionBuild.LastBuildInfo;
             if (lastBuildState == 0)
             {
-                var t = Task.Factory.StartNew(() =>
-                {
-                    lock (_lock)
+                Task.Factory.StartNew(() =>
                     {
-                        Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Running));
-                        var tempFolder = Path.Combine(Path.GetTempPath(), "AutoCover", Path.GetFileNameWithoutExtension(solution.FullName));
-                        if (Directory.Exists(tempFolder))
-                            Directory.Delete(tempFolder, true);
-                        Directory.CreateDirectory(tempFolder);
-                        var allTests = new List<UnitTest>();
-
-                        foreach (Project project in solution.Projects)
+                        lock (_lock)
                         {
-                            if (project.Name.Contains("Test")) // TODO Detect the right project type
+                            Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Running));
+                            var tempFolder = Path.Combine(Path.GetTempPath(), "AutoCover", Path.GetFileNameWithoutExtension(solution.FullName));
+                            if (Directory.Exists(tempFolder))
+                                Directory.Delete(tempFolder, true);
+                            Directory.CreateDirectory(tempFolder);
+                            var allTests = new List<UnitTest>();
+
+                            foreach (Project project in solution.Projects)
                             {
-                                var testPath = Path.Combine(tempFolder, project.Name);
-                                Instrument(project, testPath);
-                                Test(project, testPath);
-                                allTests.AddRange(ParseTests(testPath));
+                                if (project.Name.Contains("Test")) // TODO Detect the right project type
+                                {
+                                    var testPath = Path.Combine(tempFolder, project.Name);
+                                    Instrument(project, testPath);
+                                    Test(project, testPath, testSettingsPath);
+                                    allTests.AddRange(ParseTests(testPath));
+                                }
                             }
+                            return allTests;
                         }
-                        return allTests;
-                    }
-                }).ContinueWith(ct =>
-                    {
-                        Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Idle));
-                        Messenger.Default.Send(new TestsResultsMessage(ct.Result));
-                    });
+                    }).ContinueWith(ct =>
+                        {
+                            Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Idle));
+                            Messenger.Default.Send(new TestsResultsMessage(ct.Result));
+                        });
             }
         }
 
@@ -103,27 +104,32 @@ namespace AutoCover
             var basePath = project.Properties.Item("FullPath").Value.ToString();
             var outputPath = project.ConfigurationManager.ActiveConfiguration.Properties.Item("OutputPath").Value.ToString();
             var dllsPath = Path.Combine(basePath, outputPath);
+            // Copy the assemblies to the AddIn folder
             Utils.Copy(dllsPath, testPath);
+            // Instrument copied assemblies
             Runner.Run(testPath, GetAssemblies(testPath));
         }
 
-        private static void Test(Project project, string testPath)
+        private static void Test(Project project, string testPath, string testSettingsPath)
         {
+            var testResultsPath = Path.Combine(testPath, "test.trx");
+            var msTestPathExe = Utils.GetMSTestPath();
             var outputBuilder = new StringBuilder();
-            var pInfo = new ProcessStartInfo();
-            pInfo.FileName = Utils.GetMSTestPath();
-            pInfo.Arguments = " /testcontainer:" + project.Name + ".dll /resultsfile:test.trx"; // TODO Get the right assembly name
-            pInfo.WorkingDirectory = testPath;
-            pInfo.RedirectStandardOutput = true;
-            pInfo.UseShellExecute = false;
-            pInfo.CreateNoWindow = true;
+            var pInfo = new ProcessStartInfo
+                {
+                    FileName = msTestPathExe,
+                    Arguments = " /nologo /testcontainer:" + Path.Combine(testPath, project.Name) + ".dll /resultsfile:" + testResultsPath + " /testsettings:" + testSettingsPath,
+                    WorkingDirectory = Path.GetDirectoryName(msTestPathExe),
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
 
-            var proc = new System.Diagnostics.Process();
-            proc.StartInfo = pInfo;
-            proc.OutputDataReceived += new DataReceivedEventHandler(delegate(object sender, DataReceivedEventArgs e)
-            {
-                outputBuilder.Append(e.Data);
-            });
+            var proc = new System.Diagnostics.Process { StartInfo = pInfo };
+            proc.OutputDataReceived += delegate(object sender, DataReceivedEventArgs e)
+                {
+                    outputBuilder.Append(e.Data);
+                };
             proc.Start();
             proc.BeginOutputReadLine();
             proc.WaitForExit();

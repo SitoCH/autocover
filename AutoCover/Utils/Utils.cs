@@ -19,15 +19,24 @@ namespace AutoCover
                 Copy(directory, Path.Combine(targetDir, Path.GetFileName(directory)));
         }
 
+        private static readonly string[] msTestPathHints = new[] { Environment.ExpandEnvironmentVariables("%VS100COMNTOOLS%\\..\\IDE\\MSTest.exe"),
+                                            Environment.ExpandEnvironmentVariables("%ProgramFiles(X86)%\\Microsoft Visual Studio 11.0\\Common7\\MSTest.exe"),
+                                            Environment.ExpandEnvironmentVariables("%ProgramFiles(X86)%\\Microsoft Visual Studio 10.0\\Common7\\MSTest.exe"),
+                                            Environment.ExpandEnvironmentVariables("%ProgramFiles%\\Microsoft Visual Studio 11.0\\Common7\\MSTest.exe"),
+                                            Environment.ExpandEnvironmentVariables("%ProgramFiles%\\Microsoft Visual Studio 10.0\\Common7\\MSTest.exe"),
+                                            "C:\\Program Files\\Microsoft Visual Studio 11.0\\Common7\\IDE\\MSTest.exe",
+                                            "C:\\Program Files\\Microsoft Visual Studio 10.0\\Common7\\IDE\\MSTest.exe",
+                                            "C:\\Program Files (x86)\\Microsoft Visual Studio 11.0\\Common7\\IDE\\MSTest.exe",
+                                            "C:\\Program Files (x86)\\Microsoft Visual Studio 10.0\\Common7\\IDE\\MSTest.exe"};
+
         public static string GetMSTestPath()
         {
-            if (File.Exists(Environment.ExpandEnvironmentVariables(@"%VS100COMNTOOLS%..\IDE\mstest.exe")))
-                return Environment.ExpandEnvironmentVariables(@"%VS100COMNTOOLS%..\IDE\mstest.exe");
-            if (File.Exists(Environment.ExpandEnvironmentVariables(@"%VS110COMNTOOLS%..\IDE\mstest.exe")))
-                return Environment.ExpandEnvironmentVariables(@"%VS110COMNTOOLS%..\IDE\mstest.exe");
-            if (File.Exists(Environment.ExpandEnvironmentVariables(@"%VS120COMNTOOLS%..\IDE\mstest.exe")))
-                return Environment.ExpandEnvironmentVariables(@"%VS120COMNTOOLS%..\IDE\mstest.exe");
-            return null;
+            foreach (var alternative in msTestPathHints)
+            {
+                if (File.Exists(Path.GetFullPath(alternative)))
+                    return alternative;
+            }
+            throw new FileNotFoundException("Could not locate MSTest.exe.");
         }
 
     }
