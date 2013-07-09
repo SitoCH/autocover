@@ -37,88 +37,104 @@ using System.Reflection;
 
 namespace Coverage.Instrument
 {
-	/// <summary>
-	/// Creates custom Coverage.Counter assembly
-	/// This assembly has build-in location of
-	/// coverage xml file.
-	/// Also provides method definition of a Hit
-	/// method of counter in created assembly
-	/// </summary>
-	public class CounterAssemblyBuilder
-	{
-		private MethodDefinition _counterMethodDef;
-		private AssemblyDefinition _counterAssemblyDef;
-		
-		/// <summary>
-		/// Gets Hit method definition
-		/// </summary>
-		public MethodDefinition CounterMethodDef
-		{
-			get
-			{
-				if(_counterMethodDef == null)
-				{
-					///Retrieving MethodInfo using expressions will guarantee compile time error if method signature changes
-					Expression<Action<string, int>> counterExpression = (moduleId, id) => Counter.Hit(moduleId, id);
-					var counterMethodToken = ((MethodCallExpression)counterExpression.Body).Method.MetadataToken;
+    /// <summary>
+    /// Creates custom Coverage.Counter assembly
+    /// This assembly has build-in location of
+    /// coverage xml file.
+    /// Also provides method definition of a Hit
+    /// method of counter in created assembly
+    /// </summary>
+    public class CounterAssemblyBuilder
+    {
+        private MethodDefinition _counterMethodDef;
+        private MethodDefinition _setTestMethodDef;
+        private AssemblyDefinition _counterAssemblyDef;
+
+        public MethodDefinition SetTestMethodDef
+        {
+            get
+            {
+                if (_setTestMethodDef == null)
+                {
+                    //Retrieving MethodInfo using expressions will guarantee compile time error if method signature changes
+                    Expression<Action<string>> setTestExpression = (test) => Counter.SetCurrentTest(test);
+                    var setTestMethodToken = ((MethodCallExpression)setTestExpression.Body).Method.MetadataToken;
+                    _setTestMethodDef = (MethodDefinition)CounterAssemblyDef.MainModule.LookupToken(setTestMethodToken);
+                }
+                return _setTestMethodDef;
+            }
+        }
+
+        /// <summary>
+        /// Gets Hit method definition
+        /// </summary>
+        public MethodDefinition CounterMethodDef
+        {
+            get
+            {
+                if (_counterMethodDef == null)
+                {
+                    //Retrieving MethodInfo using expressions will guarantee compile time error if method signature changes
+                    Expression<Action<string, int>> counterExpression = (moduleId, id) => Counter.Hit(moduleId, id);
+                    var counterMethodToken = ((MethodCallExpression)counterExpression.Body).Method.MetadataToken;
                     _counterMethodDef = (MethodDefinition)CounterAssemblyDef.MainModule.LookupToken(counterMethodToken);
-				}
+                }
 
-				return _counterMethodDef;
-			}
-		}
-		
-		/// <summary>
-		/// Gets counter assembly definition with auto-"hardcoded" coverage file location
-		/// </summary>
-		public AssemblyDefinition CounterAssemblyDef
-		{
-			get
-			{
-				if (_counterAssemblyDef == null)
-				{
-					_counterAssemblyDef = AssemblyDefinition.ReadAssembly(typeof(Counter).Assembly.Location);
-					_counterAssemblyDef.Name.Name += ".Gen";
+                return _counterMethodDef;
+            }
+        }
 
-					SetCoverageFilePath(Path.GetFullPath(Configuration.CoverageFile));
-				}
+        /// <summary>
+        /// Gets counter assembly definition with auto-"hardcoded" coverage file location
+        /// </summary>
+        public AssemblyDefinition CounterAssemblyDef
+        {
+            get
+            {
+                if (_counterAssemblyDef == null)
+                {
+                    _counterAssemblyDef = AssemblyDefinition.ReadAssembly(typeof(Counter).Assembly.Location);
+                    _counterAssemblyDef.Name.Name += ".Gen";
 
-				return _counterAssemblyDef;
-			}
-		}
+                    SetCoverageFilePath(Path.GetFullPath(Configuration.CoverageFile));
+                }
 
-		private void SetCoverageFilePath(string coverageReportPath)
-		{
-			///Retrieving PropertyInfo using expressions
-			Expression<Func<string>> coverageFileResolver = () => Counter.CoverageFilePath;
+                return _counterAssemblyDef;
+            }
+        }
 
-			///Modifying getter of the coverage file path - adding 2 instructions at the beginning: loadstr /new path/ and ret.
-			///Old instructions become unreachable...
-			/*
-			 * Awaiting Mono.Cecil fix
-			 * var pathAccessorToken = ((MemberExpression)coverageFileResolver.Body).Member.MetadataToken;
-			 * var pathAccessorDef = (PropertyDefinition)CounterAssemblyDef.MainModule.LookupByToken(new MetadataToken(pathAccessorToken));
-			 * var pathGetterDef = pathAccessorDef.GetMethod;
-			*/
+        private void SetCoverageFilePath(string coverageReportPath)
+        {
+            ///Retrieving PropertyInfo using expressions
+            Expression<Func<string>> coverageFileResolver = () => Counter.CoverageFilePath;
 
-			var pathGetterToken = ((PropertyInfo)((MemberExpression)coverageFileResolver.Body).Member).GetGetMethod().MetadataToken;
-			var pathGetterDef = (MethodDefinition)CounterAssemblyDef.MainModule.LookupToken(pathGetterToken);
+            ///Modifying getter of the coverage file path - adding 2 instructions at the beginning: loadstr /new path/ and ret.
+            ///Old instructions become unreachable...
+            /*
+             * Awaiting Mono.Cecil fix
+             * var pathAccessorToken = ((MemberExpression)coverageFileResolver.Body).Member.MetadataToken;
+             * var pathAccessorDef = (PropertyDefinition)CounterAssemblyDef.MainModule.LookupByToken(new MetadataToken(pathAccessorToken));
+             * var pathGetterDef = pathAccessorDef.GetMethod;
+            */
+
+            var pathGetterToken = ((PropertyInfo)((MemberExpression)coverageFileResolver.Body).Member).GetGetMethod().MetadataToken;
+            var pathGetterDef = (MethodDefinition)CounterAssemblyDef.MainModule.LookupToken(pathGetterToken);
 
             var worker = pathGetterDef.Body.GetILProcessor();
-			worker.InsertBefore(pathGetterDef.Body.Instructions[0], worker.Create(OpCodes.Ret));
-			worker.InsertBefore(pathGetterDef.Body.Instructions[0], worker.Create(OpCodes.Ldstr, coverageReportPath));
-		}
+            worker.InsertBefore(pathGetterDef.Body.Instructions[0], worker.Create(OpCodes.Ret));
+            worker.InsertBefore(pathGetterDef.Body.Instructions[0], worker.Create(OpCodes.Ldstr, coverageReportPath));
+        }
 
-		/// <summary>
-		/// Saves customized Counter assembly to specified location
-		/// </summary>
-		/// <param name="path">Path</param>
-		public void Save(string path)
-		{
-			var counterAssemblyFile = Path.Combine(path, CounterAssemblyDef.Name.Name + ".dll");
+        /// <summary>
+        /// Saves customized Counter assembly to specified location
+        /// </summary>
+        /// <param name="path">Path</param>
+        public void Save(string path)
+        {
+            var counterAssemblyFile = Path.Combine(path, CounterAssemblyDef.Name.Name + ".dll");
             CounterAssemblyDef.Write(counterAssemblyFile);
 
             Configuration.CleanupCallback += () => File.Delete(counterAssemblyFile);
-		}
-	}
+        }
+    }
 }

@@ -31,12 +31,12 @@ namespace AutoCover
                     lock (_lock)
                     {
                         var tests = _coverageResult.FilterTests(document, allTests);
+                        if (tests.Count == 0)
+                            return new List<UnitTest>();
                         Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Building));
-                        if (document.ProjectItem != null && document.ProjectItem.ContainingProject != null)
-                            solution.SolutionBuild.BuildProject(solution.SolutionBuild.ActiveConfiguration.Name, document.ProjectItem.ContainingProject.UniqueName, true);
                         // Build the tests projects
                         var testProjects = tests.Select(x => x.ProjectName).Distinct().ToList();
-                        var testDlls = new Dictionary<string, string>();
+                        var testAssemblies = new List<TestAssembly>();
                         foreach (Project project in solution.Projects)
                         {
                             if (testProjects.Contains(project.Name))
@@ -46,27 +46,28 @@ namespace AutoCover
                                 if (solution.SolutionBuild.LastBuildInfo != 0)
                                     return new List<UnitTest>();
                                 var projectOutputFile = Instrument(project);
-                                testDlls.Add(project.Name, projectOutputFile);
+                                var ta = new TestAssembly { Name = project.Name, DllPath = projectOutputFile, Tests = tests.Where(x => x.ProjectData.ProjectName == project.Name).ToList() };
+                                testAssemblies.Add(ta);
+
                                 var coverageFile = Path.Combine(Path.GetDirectoryName(projectOutputFile), "coverage.xml");
                                 File.Copy(coverageFile, coverageFile + ".clean", true);
 
                             }
                         }
                         Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Testing));
-                        var counter = 1;
-                        var total = tests.Count;
-                        foreach (var test in tests)
+                        var msTestPathExe = Utils.GetMSTestPath();
+                        var processRunner = new ProcessRunner(msTestPathExe, Path.GetDirectoryName(msTestPathExe));
+                        foreach (var testAssembly in testAssemblies)
                         {
-                            Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Building, string.Format("{0} {1}/{2}", test.Name, counter, total)));
-                            var projectOutputFile = testDlls[test.ProjectData.ProjectName];
+                            Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Testing, testAssembly.Name));
+                            var projectOutputFile = testAssembly.DllPath;
                             var testResultsFile = Path.Combine(Path.GetDirectoryName(projectOutputFile), "test.trx");
                             var coverageFile = Path.Combine(Path.GetDirectoryName(projectOutputFile), "coverage.xml");
                             File.Copy(coverageFile + ".clean", coverageFile, true);
-                            TestMethod(projectOutputFile, testResultsFile, testSettingsPath, test.HumanReadableId);
-                            ParseTests(testResultsFile, _coverageResult, test.HumanReadableId);
-                            ParseCoverageResults(coverageFile, _coverageResult, test.HumanReadableId);
+                            TestMethod(processRunner, projectOutputFile, testResultsFile, testSettingsPath, testAssembly.Tests);
+                            //ParseTests(testResultsFile, _coverageResult, test.HumanReadableId);
+                            //ParseCoverageResults(coverageFile, _coverageResult, test.HumanReadableId);
                             File.Delete(testResultsFile);
-                            counter++;
                         }
                         return _coverageResult.GetTestResults();
                     }
@@ -85,8 +86,12 @@ namespace AutoCover
             var outputPath = config.Properties.Item("OutputPath").Value.ToString();
             var dllsPath = Path.Combine(basePath, outputPath);
             var newPath = Path.Combine(dllsPath, "..\\_AutoCover");
-            if (Directory.Exists(newPath))
-                Directory.Delete(newPath, true);
+            try
+            {
+                if (Directory.Exists(newPath))
+                    Directory.Delete(newPath, true);
+            }
+            catch { }
             Utils.Copy(dllsPath, newPath);
             Runner.Run(newPath, GetAssemblies(newPath));
             var fileName = project.Properties.Item("OutputFileName").Value.ToString();
@@ -159,30 +164,14 @@ namespace AutoCover
             }
         }
 
-        private static void TestMethod(string projectDll, string testResultsFile, string testSettingsPath, string test)
+        private static void TestMethod(ProcessRunner runner, string projectDll, string testResultsFile, string testSettingsPath, List<ITestElement> tests)
         {
-            var msTestPathExe = Utils.GetMSTestPath();
-            var outputBuilder = new StringBuilder();
-            var pInfo = new ProcessStartInfo
-                {
-                    FileName = msTestPathExe,
-                    Arguments = " /nologo /unique /testcontainer:\"" + projectDll + "\" /resultsfile:\"" + testResultsFile + "\" /testsettings:\"" + testSettingsPath + "\" /test:" + test,
-                    WorkingDirectory = Path.GetDirectoryName(msTestPathExe),
-                    RedirectStandardOutput = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
-
-            var proc = new System.Diagnostics.Process { StartInfo = pInfo };
-            proc.OutputDataReceived += delegate(object sender, DataReceivedEventArgs e)
-                {
-                    outputBuilder.Append(e.Data);
-                };
-            proc.Start();
-            proc.BeginOutputReadLine();
-            proc.WaitForExit();
-            proc.CancelOutputRead();
-            var output = outputBuilder.ToString();
+            var testsToRun = new StringBuilder();
+            foreach (var testElement in tests)
+            {
+                testsToRun.Append(" /test:" + testElement.HumanReadableId);
+            }
+            var output = runner.Run(" /nologo /unique /noisolation /testcontainer:\"" + projectDll + "\" /resultsfile:\"" + testResultsFile + "\" /testsettings:\"" + testSettingsPath + "\" " + testsToRun);
         }
 
         private static IEnumerable<string> GetAssemblies(string fullPath)

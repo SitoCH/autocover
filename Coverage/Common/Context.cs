@@ -106,7 +106,8 @@ namespace Coverage.Common
 
 		#region Method Context
 
-		internal MethodReference CounterMethodRef { get; set; }
+        internal MethodReference SetTestMethodDef { get; set; }
+        internal MethodReference CounterMethodRef { get; set; }
 		internal ILProcessor MethodWorker { get; set; }
 
 		#endregion Method Context

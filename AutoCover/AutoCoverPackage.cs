@@ -98,11 +98,11 @@ namespace SimoneGrignola.AutoCover
                 var menuToolWin = new MenuCommand(ShowToolWindow, toolwndCommandID);
                 mcs.AddCommand(menuToolWin);
             }
-
             _DTE = GetGlobalService(typeof(SDTE)) as DTE2;
             _testManagement = GetService(typeof(STestManagement)) as ITestManagement;
             if (_DTE != null && _testManagement != null)
             {
+                _DTE.SuppressUI = true;
                 _documentEvents = _DTE.Events.DocumentEvents;
                 _documentEvents.DocumentSaved += DocumentEvents_DocumentSaved;
             }

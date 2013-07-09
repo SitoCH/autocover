@@ -36,141 +36,149 @@ using System.Xml;
 
 namespace Coverage
 {
-	/// <summary>
-	/// This class collects and stores
-	/// history of hits of sequence points
-	/// </summary>
-	public static class Counter
-	{
-		private static DateTime _startTime;
-		private static DateTime _measureTime;
-		static Counter()
-		{
-			_startTime = DateTime.Now;
-			//These handlers execute flushing all hit counts to the xml file
-			AppDomain.CurrentDomain.DomainUnload += delegate { FlushCounter(); };
-			AppDomain.CurrentDomain.ProcessExit += delegate { FlushCounter(); };
-		}
-		
-		private static readonly Dictionary<string, Dictionary<int, int>> Hits = new Dictionary<string, Dictionary<int, int>>();
-		private static readonly Mutex Mutex = new Mutex(false, "CoverageReportUpdate");
+    /// <summary>
+    /// This class collects and stores
+    /// history of hits of sequence points
+    /// </summary>
+    public static class Counter
+    {
+        private static DateTime _startTime;
+        private static DateTime _measureTime;
+        static Counter()
+        {
+            _startTime = DateTime.Now;
+            //These handlers execute flushing all hit counts to the xml file
+            AppDomain.CurrentDomain.DomainUnload += delegate { FlushCounter(); };
+            AppDomain.CurrentDomain.ProcessExit += delegate { FlushCounter(); };
+        }
 
-		/// <summary>
-		/// Location of coverage xml file
-		/// This property's IL code is modified to store actual file location
-		/// </summary>
-		public static string CoverageFilePath
-		{
-			get { return @"c:\temp\BINS\cReport.xml"; }
-		}
+        private static readonly Dictionary<string, Dictionary<int, int>> Hits = new Dictionary<string, Dictionary<int, int>>();
+        private static readonly Mutex Mutex = new Mutex(false, "CoverageReportUpdate");
 
-		/// <summary>
-		/// This method flushes hit count buffers.
-		/// </summary>
-		public static void FlushCounter()
-		{
-			if (Hits.Count == 0)
-				return;
+        /// <summary>
+        /// Location of coverage xml file
+        /// This property's IL code is modified to store actual file location
+        /// </summary>
+        public static string CoverageFilePath
+        {
+            get { return @"c:\temp\BINS\cReport.xml"; }
+        }
 
-			KeyValuePair<string, Dictionary<int, int>>[] hitCounts;
-			lock(Hits)
-			{
-				if(Hits.Count == 0)
-					return;
+        /// <summary>
+        /// This method flushes hit count buffers.
+        /// </summary>
+        public static void FlushCounter()
+        {
+            if (Hits.Count == 0)
+                return;
 
-				hitCounts = Hits.ToArray();
-				Hits.Clear();
-			}
+            KeyValuePair<string, Dictionary<int, int>>[] hitCounts;
+            lock (Hits)
+            {
+                if (Hits.Count == 0)
+                    return;
 
-			_measureTime = DateTime.Now;
-			UpdateFileReport(hitCounts);
-		}
+                hitCounts = Hits.ToArray();
+                Hits.Clear();
+            }
 
-		/// <summary>
-		/// Save sequence point hit counts to xml report file
-		/// </summary>
-		static void UpdateFileReport(KeyValuePair<string, Dictionary<int, int>>[] hitCounts)
-		{
-			Mutex.WaitOne(10000);
+            _measureTime = DateTime.Now;
+            UpdateFileReport(hitCounts);
+        }
 
-			var flushStart = DateTime.Now;
-			DateTime flushEnd;
-			try
-			{
-				using (var coverageFile = new FileStream(CoverageFilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None, 4096, FileOptions.SequentialScan))
-				{
-					//Edit xml report to store new hits
-					var xDoc = XDocument.Load(new XmlTextReader(coverageFile));
+        /// <summary>
+        /// Save sequence point hit counts to xml report file
+        /// </summary>
+        static void UpdateFileReport(KeyValuePair<string, Dictionary<int, int>>[] hitCounts)
+        {
+            Mutex.WaitOne(10000);
 
-					var startTimeAttr = xDoc.Root.Attribute("startTime");
-					var measureTimeAttr = xDoc.Root.Attribute("measureTime");
-					var oldStartTime = DateTime.ParseExact(startTimeAttr.Value, "o", null);
-					var oldMeasureTime = DateTime.ParseExact(measureTimeAttr.Value, "o", null);
-					
-					_startTime = _startTime < oldStartTime ? _startTime : oldStartTime; //Min
-					_measureTime = _measureTime > oldMeasureTime ? _measureTime : oldMeasureTime; //Max
+            var flushStart = DateTime.Now;
+            DateTime flushEnd;
+            try
+            {
+                using (var coverageFile = new FileStream(CoverageFilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None, 4096, FileOptions.SequentialScan))
+                {
+                    //Edit xml report to store new hits
+                    var xDoc = XDocument.Load(new XmlTextReader(coverageFile));
 
-					startTimeAttr.SetValue(_startTime.ToString("o"));
-					measureTimeAttr.SetValue(_measureTime.ToString("o"));
+                    var startTimeAttr = xDoc.Root.Attribute("startTime");
+                    var measureTimeAttr = xDoc.Root.Attribute("measureTime");
+                    var oldStartTime = DateTime.ParseExact(startTimeAttr.Value, "o", null);
+                    var oldMeasureTime = DateTime.ParseExact(measureTimeAttr.Value, "o", null);
 
-					foreach (var pair in hitCounts)
-					{
-						var moduleId = pair.Key;
-						var moduleHits = pair.Value;
-						var xModule = xDoc.Descendants("module").First(el => el.Attribute("moduleId").Value == moduleId);
+                    _startTime = _startTime < oldStartTime ? _startTime : oldStartTime; //Min
+                    _measureTime = _measureTime > oldMeasureTime ? _measureTime : oldMeasureTime; //Max
 
-						var counter = 0;
-						foreach (var pt in xModule.Descendants("seqpnt"))
-						{
-							counter++;
-							if (!moduleHits.ContainsKey(counter))
-								continue;
+                    startTimeAttr.SetValue(_startTime.ToString("o"));
+                    measureTimeAttr.SetValue(_measureTime.ToString("o"));
 
-							var visits = int.Parse(pt.Attribute("visitcount").Value);
-							pt.SetAttributeValue("visitcount", visits + moduleHits[counter]);
-						}
-					}
-					
-					//Save modified xml to a file
-					coverageFile.Seek(0, SeekOrigin.Begin);
-					var writer = XmlWriter.Create(coverageFile);
-					xDoc.WriteTo(writer);
-					writer.Flush();
-				}
-			}
-			finally
-			{
-				flushEnd = DateTime.Now;
-				Mutex.ReleaseMutex();
-			}
+                    foreach (var pair in hitCounts)
+                    {
+                        var moduleId = pair.Key;
+                        var moduleHits = pair.Value;
+                        var xModule = xDoc.Descendants("module").First(el => el.Attribute("moduleId").Value == moduleId);
 
-			try
-			{
-				Console.WriteLine(
-					"Coverage statistics flushing took {0:N} seconds",
-					new TimeSpan(flushEnd.Ticks - flushStart.Ticks).TotalSeconds
-				);
-			}
-			catch(Exception){}
-		}
+                        var counter = 0;
+                        foreach (var pt in xModule.Descendants("seqpnt"))
+                        {
+                            counter++;
+                            if (!moduleHits.ContainsKey(counter))
+                                continue;
 
-		/// <summary>
-		/// This method is executed from instrumented assemblies.
-		/// </summary>
-		public static void Hit(string moduleId, int hitPointId)
-		{
-			lock (Hits)
-			{
-				if (!Hits.ContainsKey(moduleId))
-				{
-					Hits[moduleId] = new Dictionary<int,int>();
-				}
-				if (!Hits[moduleId].ContainsKey(hitPointId))
-				{
-					Hits[moduleId][hitPointId] = 0;
-				}
-				Hits[moduleId][hitPointId]++;
-			}
-		}
-	}
+                            var visits = int.Parse(pt.Attribute("visitcount").Value);
+                            pt.SetAttributeValue("visitcount", visits + moduleHits[counter]);
+                        }
+                    }
+
+                    //Save modified xml to a file
+                    coverageFile.Seek(0, SeekOrigin.Begin);
+                    var writer = XmlWriter.Create(coverageFile);
+                    xDoc.WriteTo(writer);
+                    writer.Flush();
+                }
+            }
+            finally
+            {
+                flushEnd = DateTime.Now;
+                Mutex.ReleaseMutex();
+            }
+
+            try
+            {
+                Console.WriteLine(
+                    "Coverage statistics flushing took {0:N} seconds",
+                    new TimeSpan(flushEnd.Ticks - flushStart.Ticks).TotalSeconds
+                );
+            }
+            catch (Exception) { }
+        }
+
+        /// <summary>
+        /// This method is executed from instrumented assemblies.
+        /// </summary>
+        public static void Hit(string moduleId, int hitPointId)
+        {
+            lock (Hits)
+            {
+                if (!Hits.ContainsKey(moduleId))
+                {
+                    Hits[moduleId] = new Dictionary<int, int>();
+                }
+                if (!Hits[moduleId].ContainsKey(hitPointId))
+                {
+                    Hits[moduleId][hitPointId] = 0;
+                }
+                Hits[moduleId][hitPointId]++;
+            }
+        }
+
+        public static void SetCurrentTest(string test)
+        {
+            lock (Hits)
+            {
+
+            }
+        }
+    }
 }
