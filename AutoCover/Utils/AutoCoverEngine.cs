@@ -24,18 +24,16 @@ namespace AutoCover
         private static readonly object _lock = new object();
         private static readonly CoverageResult _coverageResult = new CoverageResult();
 
-        public static void CheckSolution(Solution solution, Document document, List<ITestElement> tests, string testSettingsPath)
+        public static void CheckSolution(Solution solution, Document document, List<ITestElement> allTests, string testSettingsPath)
         {
             Task.Factory.StartNew(() =>
                 {
                     lock (_lock)
                     {
-                        tests = _coverageResult.FilterTests(document, tests);
+                        var tests = _coverageResult.FilterTests(document, allTests);
                         Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Building));
-                        // Create AutoCover configuration
-                        CreateSolutionConfiguration(solution);
                         if (document.ProjectItem != null && document.ProjectItem.ContainingProject != null)
-                            solution.SolutionBuild.BuildProject("AutoCoverDebug", document.ProjectItem.ContainingProject.UniqueName, true);
+                            solution.SolutionBuild.BuildProject(solution.SolutionBuild.ActiveConfiguration.Name, document.ProjectItem.ContainingProject.UniqueName, true);
                         // Build the tests projects
                         var testProjects = tests.Select(x => x.ProjectName).Distinct().ToList();
                         var testDlls = new Dictionary<string, string>();
@@ -44,7 +42,7 @@ namespace AutoCover
                             if (testProjects.Contains(project.Name))
                             {
                                 Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Building, project.Name));
-                                solution.SolutionBuild.BuildProject("AutoCoverDebug", project.UniqueName, true);
+                                solution.SolutionBuild.BuildProject(solution.SolutionBuild.ActiveConfiguration.Name, project.UniqueName, true);
                                 if (solution.SolutionBuild.LastBuildInfo != 0)
                                     return new List<UnitTest>();
                                 var projectOutputFile = Instrument(project);
@@ -83,35 +81,16 @@ namespace AutoCover
         private static string Instrument(Project project)
         {
             var basePath = project.Properties.Item("FullPath").Value.ToString();
-            foreach (EnvDTE.Configuration config in project.ConfigurationManager)
-            {
-                if (config.ConfigurationName == "AutoCoverDebug")
-                {
-                    var outputPath = config.Properties.Item("OutputPath").Value.ToString();
-                    var dllsPath = Path.Combine(basePath, outputPath);
-                    Runner.Run(dllsPath, GetAssemblies(dllsPath));
-                    var fileName = project.Properties.Item("OutputFileName").Value.ToString();
-                    return Path.Combine(basePath, outputPath, fileName);
-                }
-            }
-            throw new Exception("Unable to run tests");
-        }
-
-        private static void CreateSolutionConfiguration(Solution solution)
-        {
-            var found = false;
-            foreach (SolutionConfiguration sc in solution.SolutionBuild.SolutionConfigurations)
-            {
-                if (sc.Name == "AutoCoverDebug")
-                {
-                    found = true;
-                    break;
-                }
-            }
-            if (!found)
-            {
-                solution.SolutionBuild.SolutionConfigurations.Add("AutoCoverDebug", "Debug", true);
-            }
+            var config = project.ConfigurationManager.ActiveConfiguration;
+            var outputPath = config.Properties.Item("OutputPath").Value.ToString();
+            var dllsPath = Path.Combine(basePath, outputPath);
+            var newPath = Path.Combine(dllsPath, "..\\_AutoCover");
+            if (Directory.Exists(newPath))
+                Directory.Delete(newPath, true);
+            Utils.Copy(dllsPath, newPath);
+            Runner.Run(newPath, GetAssemblies(newPath));
+            var fileName = project.Properties.Item("OutputFileName").Value.ToString();
+            return Path.Combine(newPath, fileName);
         }
 
         private static void ParseCoverageResults(string coverageFile, CoverageResult coverageResult, string test)
