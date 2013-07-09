@@ -101,7 +101,7 @@ namespace AutoCover
             return Path.Combine(newPath, fileName);
         }
 
-        private static void ParseCoverageResults(string coverageFile, CoverageResults coverageResult, string test)
+        /*private static void ParseCoverageResults(string coverageFile, CoverageResults coverageResult, string test)
         {
             using (var coverageStream = new FileStream(coverageFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None, 4096, FileOptions.SequentialScan))
             {
@@ -127,7 +127,8 @@ namespace AutoCover
                     }
                 }
             }
-        }
+        } */
+
 
         private static IEnumerable<string> GetAssemblies(string fullPath)
         {

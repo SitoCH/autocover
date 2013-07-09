@@ -67,7 +67,7 @@ namespace AutoCover
                             continue;
 
                         var unitTest = new UnitTest { Name = unitTestResultType.testName };
-                        testResults.ProcessUnitTestResult(unitTestResultType.testId, unitTest);
+                        testResults.ProcessUnitTestResult(new Guid(unitTestResultType.testId), unitTest);
                         var outcome = unitTestResultType.outcome;
                         if (outcome != "Failed")
                             continue;

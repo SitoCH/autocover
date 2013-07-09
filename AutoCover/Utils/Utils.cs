@@ -46,12 +46,12 @@ namespace AutoCover
             if (testsResults.GetTestResults().Count == 0)
                 return suggestedTests;
 
-            testsResults.RemoveDeletedStests(suggestedTests);
+            testsResults.RemoveDeletedTests(suggestedTests);
 
             var impactedTests = coverageResults.GetImpactedTests(document.FullName);
-            var oldTests = new HashSet<string>(testsResults.GetTestResults().Keys);
+            var oldTests = new HashSet<Guid>(testsResults.GetTestResults().Keys);
 
-            return suggestedTests.Where(x => impactedTests.Contains(x.HumanReadableId) || !oldTests.Contains(x.HumanReadableId)).ToList();
+            return suggestedTests.Where(x => impactedTests.Contains(x.Id.Id) || !oldTests.Contains(x.Id.Id)).ToList();
         }
     }
 }

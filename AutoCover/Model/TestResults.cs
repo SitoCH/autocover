@@ -8,14 +8,14 @@ namespace AutoCover
 {
     public class TestResults
     {
-        private readonly Dictionary<string, UnitTest> _testResults = new Dictionary<string, UnitTest>();
+        private readonly Dictionary<Guid, UnitTest> _testResults = new Dictionary<Guid, UnitTest>();
 
-        public void ProcessUnitTestResult(string test, UnitTest result)
+        public void ProcessUnitTestResult(Guid testId, UnitTest result)
         {
-            _testResults[test] = result;
+            _testResults[testId] = result;
         }
 
-        public Dictionary<string, UnitTest> GetTestResults()
+        public Dictionary<Guid, UnitTest> GetTestResults()
         {
             return _testResults;
         }
@@ -25,9 +25,9 @@ namespace AutoCover
             _testResults.Clear();
         }
 
-        internal void RemoveDeletedStests(List<ITestElement> suggestedTests)
+        public void RemoveDeletedTests(List<ITestElement> suggestedTests)
         {
-            var newTests = new HashSet<string>(suggestedTests.Select(x => x.HumanReadableId));
+            var newTests = new HashSet<Guid>(suggestedTests.Select(x => x.Id.Id));
             foreach (var key in _testResults.Keys.ToList())
             {
                 if (!newTests.Contains(key))

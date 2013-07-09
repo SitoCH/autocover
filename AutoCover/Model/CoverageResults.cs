@@ -10,17 +10,17 @@ namespace AutoCover
     public class CoverageResults
     {
         //private readonly Dictionary<string, List<CodeBlock>> _documents = new Dictionary<string, List<CodeBlock>>();
-        private readonly Dictionary<string, HashSet<string>> _impactedTests = new Dictionary<string, HashSet<string>>();
+        private readonly Dictionary<string, HashSet<Guid>> _impactedTests = new Dictionary<string, HashSet<Guid>>();
 
-        public void ProcessCodeBlock(string test, string document, CodeBlock cb)
+        public void ProcessCodeBlock(Guid testId, string document, CodeBlock cb)
         {
             //if (!_documents.ContainsKey(document))
             //    _documents.Add(document, new List<CodeBlock>());
             //_documents[document].Add(cb);
 
             if (!_impactedTests.ContainsKey(document))
-                _impactedTests.Add(document, new HashSet<string>());
-            _impactedTests[document].Add(test);
+                _impactedTests.Add(document, new HashSet<Guid>());
+            _impactedTests[document].Add(testId);
         }
 
         public void Clear()
@@ -28,7 +28,7 @@ namespace AutoCover
             _impactedTests.Clear();
         }
 
-        public HashSet<string> GetImpactedTests(string document)
+        public HashSet<Guid> GetImpactedTests(string document)
         {
             if (_impactedTests.ContainsKey(document))
             {
@@ -39,7 +39,7 @@ namespace AutoCover
                 }
                 return impactedTests;
             }
-            return new HashSet<string>();
+            return new HashSet<Guid>();
         }
     }
 
