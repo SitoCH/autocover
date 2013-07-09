@@ -55,7 +55,7 @@ namespace AutoCover
                             }
                         }
                         var tests = Utils.FilterTests(document, _testResults, _coverageResults, tmi.GetTests().ToList());
-                        if (testAssemblies.Count == 0 || currentTests.Count == 0)
+                        if (testAssemblies.Count == 0 || tests.Count == 0)
                             return new List<UnitTest>();
                         testAssemblies.ForEach(ta => ta.Tests = tests.Where(x => x.ProjectData.ProjectName == ta.Name).ToList());
 
