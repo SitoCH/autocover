@@ -132,9 +132,11 @@
     </COMReference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Model\CoverageResult.cs" />
+    <Compile Include="Model\CoverageResults.cs" />
     <Compile Include="Model\TestAssembly.cs" />
+    <Compile Include="Model\TestResults.cs" />
     <Compile Include="Utils\Messages.cs" />
+    <Compile Include="Utils\MSTestRunner.cs" />
     <Compile Include="Utils\ProcessRunner.cs" />
     <Compile Include="ViewModel\AutoCoverMainViewModel.cs" />
     <Compile Include="View\AutoCoverMainControl.xaml.cs">

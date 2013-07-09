@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.IO;
+using Microsoft.VisualStudio.TestTools.Common;
+using EnvDTE;
 
 namespace AutoCover
 {
@@ -39,5 +41,17 @@ namespace AutoCover
             throw new FileNotFoundException("Could not locate MSTest.exe.");
         }
 
+        public static List<ITestElement> FilterTests(Document document, TestResults testsResults, CoverageResults coverageResults, List<ITestElement> suggestedTests)
+        {
+            if (testsResults.GetTestResults().Count == 0)
+                return suggestedTests;
+
+            testsResults.RemoveDeletedStests(suggestedTests);
+
+            var impactedTests = coverageResults.GetImpactedTests(document.FullName);
+            var oldTests = new HashSet<string>(testsResults.GetTestResults().Keys);
+
+            return suggestedTests.Where(x => impactedTests.Contains(x.HumanReadableId) || !oldTests.Contains(x.HumanReadableId)).ToList();
+        }
     }
 }

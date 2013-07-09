@@ -22,20 +22,21 @@ namespace AutoCover
     public static class AutoCoverEngine
     {
         private static readonly object _lock = new object();
-        private static readonly CoverageResult _coverageResult = new CoverageResult();
+        private static readonly CoverageResults _coverageResults = new CoverageResults();
+        private static readonly TestResults _testResults = new TestResults();
 
-        public static void CheckSolution(Solution solution, Document document, List<ITestElement> allTests, string testSettingsPath)
+        public static void CheckSolution(Solution solution, Document document, ITmi tmi, string testSettingsPath)
         {
             Task.Factory.StartNew(() =>
                 {
                     lock (_lock)
                     {
-                        var tests = _coverageResult.FilterTests(document, allTests);
-                        if (tests.Count == 0)
+                        var currentTests = tmi.GetTests().ToList();
+                        if (currentTests.Count == 0)
                             return new List<UnitTest>();
                         Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Building));
                         // Build the tests projects
-                        var testProjects = tests.Select(x => x.ProjectName).Distinct().ToList();
+                        var testProjects = currentTests.Select(x => x.ProjectName).Distinct().ToList();
                         var testAssemblies = new List<TestAssembly>();
                         foreach (Project project in solution.Projects)
                         {
@@ -43,18 +44,21 @@ namespace AutoCover
                             {
                                 Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Building, project.Name));
                                 solution.SolutionBuild.BuildProject(solution.SolutionBuild.ActiveConfiguration.Name, project.UniqueName, true);
-                                if (solution.SolutionBuild.LastBuildInfo != 0)
-                                    return new List<UnitTest>();
-                                var projectOutputFile = Instrument(project);
-                                var ta = new TestAssembly { Name = project.Name, DllPath = projectOutputFile, Tests = tests.Where(x => x.ProjectData.ProjectName == project.Name).ToList() };
-                                testAssemblies.Add(ta);
-
-                                var coverageFile = Path.Combine(Path.GetDirectoryName(projectOutputFile), "coverage.xml");
-                                File.Copy(coverageFile, coverageFile + ".clean", true);
-
+                                if (solution.SolutionBuild.LastBuildInfo == 0)
+                                {
+                                    var projectOutputFile = Instrument(project);
+                                    var ta = new TestAssembly { Name = project.Name, DllPath = projectOutputFile };
+                                    testAssemblies.Add(ta);
+                                    var coverageFile = Path.Combine(Path.GetDirectoryName(projectOutputFile), "coverage.xml");
+                                    File.Copy(coverageFile, coverageFile + ".clean", true);
+                                }
                             }
                         }
-                        Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Testing));
+                        var tests = Utils.FilterTests(document, _testResults, _coverageResults, tmi.GetTests().ToList());
+                        if (testAssemblies.Count == 0 || currentTests.Count == 0)
+                            return new List<UnitTest>();
+                        testAssemblies.ForEach(ta => ta.Tests = tests.Where(x => x.ProjectData.ProjectName == ta.Name).ToList());
+
                         var msTestPathExe = Utils.GetMSTestPath();
                         var processRunner = new ProcessRunner(msTestPathExe, Path.GetDirectoryName(msTestPathExe));
                         foreach (var testAssembly in testAssemblies)
@@ -64,12 +68,11 @@ namespace AutoCover
                             var testResultsFile = Path.Combine(Path.GetDirectoryName(projectOutputFile), "test.trx");
                             var coverageFile = Path.Combine(Path.GetDirectoryName(projectOutputFile), "coverage.xml");
                             File.Copy(coverageFile + ".clean", coverageFile, true);
-                            TestMethod(processRunner, projectOutputFile, testResultsFile, testSettingsPath, testAssembly.Tests);
-                            //ParseTests(testResultsFile, _coverageResult, test.HumanReadableId);
+                            MSTestRunner.Run(processRunner, projectOutputFile, testResultsFile, testSettingsPath, testAssembly.Tests, _testResults);
                             //ParseCoverageResults(coverageFile, _coverageResult, test.HumanReadableId);
                             File.Delete(testResultsFile);
                         }
-                        return _coverageResult.GetTestResults();
+                        return _testResults.GetTestResults().Values.ToList();
                     }
                 }).ContinueWith(ct =>
                     {
@@ -98,7 +101,7 @@ namespace AutoCover
             return Path.Combine(newPath, fileName);
         }
 
-        private static void ParseCoverageResults(string coverageFile, CoverageResult coverageResult, string test)
+        private static void ParseCoverageResults(string coverageFile, CoverageResults coverageResult, string test)
         {
             using (var coverageStream = new FileStream(coverageFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None, 4096, FileOptions.SequentialScan))
             {
@@ -124,54 +127,6 @@ namespace AutoCover
                     }
                 }
             }
-        }
-
-        private static void ParseTests(string testResultsFile, CoverageResult coverageResult, string test)
-        {
-            using (var fileStreamReader = new StreamReader(testResultsFile))
-            {
-                var xmlSer = new XmlSerializer(typeof(TestRunType));
-                var testRunType = (TestRunType)xmlSer.Deserialize(fileStreamReader);
-                foreach (var itob1 in testRunType.Items) // Useless loop, every test has it's own file
-                {
-                    var resultsType = itob1 as ResultsType;
-                    if (resultsType == null)
-                        continue;
-                    foreach (var itob2 in resultsType.Items)
-                    {
-                        var unitTestResultType = itob2 as UnitTestResultType;
-                        if (unitTestResultType == null)
-                            continue;
-
-                        var unitTest = new UnitTest { Name = unitTestResultType.testName };
-                        coverageResult.ProcessUnitTestResult(test, unitTest);
-                        var outcome = unitTestResultType.outcome;
-                        if (outcome != "Failed")
-                            continue;
-                        var items = unitTestResultType.Items;
-                        if (items == null || items.Length <= 0)
-                            continue;
-                        // now we know we have a failed test; look for the desired string(s) in the error message
-                        var outputType = (OutputType)unitTestResultType.Items[0];
-                        var errorInfo = outputType.ErrorInfo;
-                        var message = errorInfo.Message;
-                        var text = ((XmlNode[])message)[0].InnerText;
-
-                        unitTest.Result = UnitTestResult.Failed;
-                        unitTest.Message = text;
-                    }
-                }
-            }
-        }
-
-        private static void TestMethod(ProcessRunner runner, string projectDll, string testResultsFile, string testSettingsPath, List<ITestElement> tests)
-        {
-            var testsToRun = new StringBuilder();
-            foreach (var testElement in tests)
-            {
-                testsToRun.Append(" /test:" + testElement.HumanReadableId);
-            }
-            var output = runner.Run(" /nologo /unique /noisolation /testcontainer:\"" + projectDll + "\" /resultsfile:\"" + testResultsFile + "\" /testsettings:\"" + testSettingsPath + "\" " + testsToRun);
         }
 
         private static IEnumerable<string> GetAssemblies(string fullPath)

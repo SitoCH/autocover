@@ -114,8 +114,7 @@ namespace SimoneGrignola.AutoCover
             var config = tmi.GetTestRunConfiguration(tmi.ActiveTestRunConfigurationId);
             if (config != null)
             {
-                var tests = tmi.GetTests().ToList();
-                AutoCoverEngine.CheckSolution(_DTE.Solution, document, tests, config.Storage);
+                AutoCoverEngine.CheckSolution(_DTE.Solution, document, tmi, config.Storage);
             }
         }
     }
