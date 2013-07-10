@@ -49,8 +49,6 @@ namespace AutoCover
                                     var projectOutputFile = Instrument(solution, project);
                                     var ta = new TestAssembly { Name = project.Name, DllPath = projectOutputFile };
                                     testAssemblies.Add(ta);
-                                    var coverageFile = Path.Combine(Path.GetDirectoryName(projectOutputFile), "coverage.xml");
-                                    File.Copy(coverageFile, coverageFile + ".clean", true);
                                 }
                             }
                         }
@@ -66,9 +64,8 @@ namespace AutoCover
                             Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Testing, testAssembly.Name));
                             var projectOutputFile = testAssembly.DllPath;
                             var testResultsFile = Path.Combine(Path.GetDirectoryName(projectOutputFile), "test.trx");
-                            var coverageFile = Path.Combine(Path.GetDirectoryName(projectOutputFile), "coverage.xml");
-                            File.Copy(coverageFile + ".clean", coverageFile, true);
                             MSTestRunner.Run(processRunner, projectOutputFile, testResultsFile, testSettingsPath, testAssembly.Tests, _testResults);
+                            var coverageFile = Path.Combine(Path.GetDirectoryName(projectOutputFile), "coverage.xml.results");
                             //ParseCoverageResults(coverageFile, _coverageResult, test.HumanReadableId);
                             File.Delete(testResultsFile);
                         }

@@ -44,6 +44,10 @@ namespace Coverage
     {
         private static DateTime _startTime;
         private static DateTime _measureTime;
+        private static string _currentTest;
+        private static readonly Dictionary<string, Dictionary<int, HashSet<string>>> Hits = new Dictionary<string, Dictionary<int, HashSet<string>>>();
+        private static readonly Mutex Mutex = new Mutex(false, "CoverageReportUpdate");
+
         static Counter()
         {
             _startTime = DateTime.Now;
@@ -51,9 +55,6 @@ namespace Coverage
             AppDomain.CurrentDomain.DomainUnload += delegate { FlushCounter(); };
             AppDomain.CurrentDomain.ProcessExit += delegate { FlushCounter(); };
         }
-
-        private static readonly Dictionary<string, Dictionary<int, int>> Hits = new Dictionary<string, Dictionary<int, int>>();
-        private static readonly Mutex Mutex = new Mutex(false, "CoverageReportUpdate");
 
         /// <summary>
         /// Location of coverage xml file
@@ -72,7 +73,7 @@ namespace Coverage
             if (Hits.Count == 0)
                 return;
 
-            KeyValuePair<string, Dictionary<int, int>>[] hitCounts;
+            KeyValuePair<string, Dictionary<int, HashSet<string>>>[] hitCounts;
             lock (Hits)
             {
                 if (Hits.Count == 0)
@@ -89,7 +90,7 @@ namespace Coverage
         /// <summary>
         /// Save sequence point hit counts to xml report file
         /// </summary>
-        static void UpdateFileReport(KeyValuePair<string, Dictionary<int, int>>[] hitCounts)
+        static void UpdateFileReport(IEnumerable<KeyValuePair<string, Dictionary<int, HashSet<string>>>> hitCounts)
         {
             Mutex.WaitOne(10000);
 
@@ -97,45 +98,49 @@ namespace Coverage
             DateTime flushEnd;
             try
             {
-                using (var coverageFile = new FileStream(CoverageFilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None, 4096, FileOptions.SequentialScan))
+                using (var coverageFile = new FileStream(CoverageFilePath, FileMode.Open))
                 {
-                    //Edit xml report to store new hits
-                    var xDoc = XDocument.Load(new XmlTextReader(coverageFile));
-
-                    var startTimeAttr = xDoc.Root.Attribute("startTime");
-                    var measureTimeAttr = xDoc.Root.Attribute("measureTime");
-                    var oldStartTime = DateTime.ParseExact(startTimeAttr.Value, "o", null);
-                    var oldMeasureTime = DateTime.ParseExact(measureTimeAttr.Value, "o", null);
-
-                    _startTime = _startTime < oldStartTime ? _startTime : oldStartTime; //Min
-                    _measureTime = _measureTime > oldMeasureTime ? _measureTime : oldMeasureTime; //Max
-
-                    startTimeAttr.SetValue(_startTime.ToString("o"));
-                    measureTimeAttr.SetValue(_measureTime.ToString("o"));
-
-                    foreach (var pair in hitCounts)
+                    using (var resultsFile = new FileStream(CoverageFilePath + ".results", FileMode.Create))
                     {
-                        var moduleId = pair.Key;
-                        var moduleHits = pair.Value;
-                        var xModule = xDoc.Descendants("module").First(el => el.Attribute("moduleId").Value == moduleId);
+                        var resultsDoc = new XmlDocument();
 
-                        var counter = 0;
-                        foreach (var pt in xModule.Descendants("seqpnt"))
+                        //Edit xml report to store new hits
+                        var xDoc = XDocument.Load(new XmlTextReader(coverageFile));
+
+                        var startTimeAttr = xDoc.Root.Attribute("startTime");
+                        var measureTimeAttr = xDoc.Root.Attribute("measureTime");
+                        var oldStartTime = DateTime.ParseExact(startTimeAttr.Value, "o", null);
+                        var oldMeasureTime = DateTime.ParseExact(measureTimeAttr.Value, "o", null);
+
+                        _startTime = _startTime < oldStartTime ? _startTime : oldStartTime; //Min
+                        _measureTime = _measureTime > oldMeasureTime ? _measureTime : oldMeasureTime; //Max
+
+                        startTimeAttr.SetValue(_startTime.ToString("o"));
+                        measureTimeAttr.SetValue(_measureTime.ToString("o"));
+
+                        foreach (var pair in hitCounts)
                         {
-                            counter++;
-                            if (!moduleHits.ContainsKey(counter))
-                                continue;
+                            var moduleId = pair.Key;
+                            var moduleHits = pair.Value;
+                            var xModule = xDoc.Descendants("module").First(el => el.Attribute("moduleId").Value == moduleId);
 
-                            var visits = int.Parse(pt.Attribute("visitcount").Value);
-                            pt.SetAttributeValue("visitcount", visits + moduleHits[counter]);
+                            var counter = 0;
+                            foreach (var pt in xModule.Descendants("seqpnt"))
+                            {
+                                counter++;
+                                if (!moduleHits.ContainsKey(counter))
+                                    continue;
+
+                                //var visits = int.Parse(pt.Attribute("visitcount").Value);
+                                //pt.SetAttributeValue("visitcount", visits + moduleHits[counter]);
+                            }
+                        }
+
+                        using (var writer = XmlWriter.Create(resultsFile))
+                        {
+                            resultsDoc.WriteTo(writer);
                         }
                     }
-
-                    //Save modified xml to a file
-                    coverageFile.Seek(0, SeekOrigin.Begin);
-                    var writer = XmlWriter.Create(coverageFile);
-                    xDoc.WriteTo(writer);
-                    writer.Flush();
                 }
             }
             finally
@@ -162,14 +167,10 @@ namespace Coverage
             lock (Hits)
             {
                 if (!Hits.ContainsKey(moduleId))
-                {
-                    Hits[moduleId] = new Dictionary<int, int>();
-                }
+                    Hits[moduleId] = new Dictionary<int, HashSet<string>>();
                 if (!Hits[moduleId].ContainsKey(hitPointId))
-                {
-                    Hits[moduleId][hitPointId] = 0;
-                }
-                Hits[moduleId][hitPointId]++;
+                    Hits[moduleId][hitPointId] = new HashSet<string>();
+                Hits[moduleId][hitPointId].Add(_currentTest);
             }
         }
 
@@ -177,7 +178,7 @@ namespace Coverage
         {
             lock (Hits)
             {
-
+                _currentTest = test;
             }
         }
     }
