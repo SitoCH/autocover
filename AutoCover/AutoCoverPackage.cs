@@ -43,6 +43,7 @@ namespace SimoneGrignola.AutoCover
     {
         private DTE2 _DTE;
         private DocumentEvents _documentEvents;
+        private SolutionEvents _solutionEvents;
         private ITestManagement _testManagement;
 
         /// <summary>
@@ -105,7 +106,14 @@ namespace SimoneGrignola.AutoCover
                 _DTE.SuppressUI = true;
                 _documentEvents = _DTE.Events.DocumentEvents;
                 _documentEvents.DocumentSaved += DocumentEvents_DocumentSaved;
+                _solutionEvents = _DTE.Events.SolutionEvents;
+                _solutionEvents.Opened += _solutionEvents_Opened;
             }
+        }
+
+        void _solutionEvents_Opened()
+        {
+            AutoCoverEngine.Reset();
         }
 
         void DocumentEvents_DocumentSaved(Document document)

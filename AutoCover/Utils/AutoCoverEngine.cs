@@ -46,7 +46,7 @@ namespace AutoCover
                                 solution.SolutionBuild.BuildProject(solution.SolutionBuild.ActiveConfiguration.Name, project.UniqueName, true);
                                 if (solution.SolutionBuild.LastBuildInfo == 0)
                                 {
-                                    var projectOutputFile = Instrument(project);
+                                    var projectOutputFile = Instrument(solution, project);
                                     var ta = new TestAssembly { Name = project.Name, DllPath = projectOutputFile };
                                     testAssemblies.Add(ta);
                                     var coverageFile = Path.Combine(Path.GetDirectoryName(projectOutputFile), "coverage.xml");
@@ -82,13 +82,23 @@ namespace AutoCover
 
         }
 
-        private static string Instrument(Project project)
+        public static void Reset()
+        {
+            lock (_lock)
+            {
+                _coverageResults.Reset();
+                _testResults.Reset();
+            }
+        }
+
+        private static string Instrument(Solution solution, Project project)
         {
             var basePath = project.Properties.Item("FullPath").Value.ToString();
+            var solutionPath = Path.GetDirectoryName(solution.FullName);
             var config = project.ConfigurationManager.ActiveConfiguration;
             var outputPath = config.Properties.Item("OutputPath").Value.ToString();
             var dllsPath = Path.Combine(basePath, outputPath);
-            var newPath = Path.Combine(dllsPath, "..\\_AutoCover");
+            var newPath = Path.Combine(solutionPath, "_AutoCover", project.Name);
             try
             {
                 if (Directory.Exists(newPath))

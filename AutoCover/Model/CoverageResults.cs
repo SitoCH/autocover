@@ -23,7 +23,7 @@ namespace AutoCover
             _impactedTests[document].Add(testId);
         }
 
-        public void Clear()
+        public void Reset()
         {
             _impactedTests.Clear();
         }

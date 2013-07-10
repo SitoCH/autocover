@@ -20,7 +20,7 @@ namespace AutoCover
             return _testResults;
         }
 
-        public void Clear()
+        public void Reset()
         {
             _testResults.Clear();
         }
