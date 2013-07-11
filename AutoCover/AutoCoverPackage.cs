@@ -119,10 +119,13 @@ namespace SimoneGrignola.AutoCover
         void DocumentEvents_DocumentSaved(Document document)
         {
             var tmi = _testManagement.TmiInstance;
-            var config = tmi.GetTestRunConfiguration(tmi.ActiveTestRunConfigurationId);
-            if (config != null)
+            if (tmi != null)
             {
-                AutoCoverEngine.CheckSolution(_DTE.Solution, document, tmi, config.Storage);
+                var config = tmi.GetTestRunConfiguration(tmi.ActiveTestRunConfigurationId);
+                if (config != null)
+                {
+                    AutoCoverEngine.CheckSolution(_DTE.Solution, document, tmi, config.Storage);
+                }
             }
         }
     }

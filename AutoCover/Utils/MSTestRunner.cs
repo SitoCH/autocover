@@ -46,7 +46,7 @@ namespace AutoCover
             var testListFile = Path.Combine(Path.GetDirectoryName(testResultsFile), "autocover.vsmdi");
             File.WriteAllText(testListFile, testsToRun.ToString());
 
-            var output = runner.Run(" /nologo /noisolation /resultsfile:\"" + testResultsFile + "\" /testsettings:\"" + testSettingsPath + "\"  /testmetadata:\"" + testListFile + "\" /testlist:AutoCover");
+            var output = runner.Run(" /nologo /resultsfile:\"" + testResultsFile + "\" /testsettings:\"" + testSettingsPath + "\"  /testmetadata:\"" + testListFile + "\" /testlist:AutoCover");
         }
 
         private static void ParseTests(string testResultsFile, TestResults testResults)

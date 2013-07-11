@@ -10,7 +10,7 @@ namespace AutoCover
     public class CoverageResults
     {
         //private readonly Dictionary<string, List<CodeBlock>> _documents = new Dictionary<string, List<CodeBlock>>();
-        private readonly Dictionary<string, HashSet<Guid>> _impactedTests = new Dictionary<string, HashSet<Guid>>();
+        private readonly Dictionary<string, HashSet<Guid>> _impactedTests = new Dictionary<string, HashSet<Guid>>(StringComparer.OrdinalIgnoreCase);
 
         public void ProcessCodeBlock(Guid testId, string document, CodeBlock cb)
         {
@@ -45,7 +45,6 @@ namespace AutoCover
 
     public class CodeBlock
     {
-        public int VisitCount { get; set; }
         public int Line { get; set; }
         public int Column { get; set; }
         public int EndLine { get; set; }

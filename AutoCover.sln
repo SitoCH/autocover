@@ -7,6 +7,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoCover_IntegrationTests"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{CFBF7531-CE2A-423D-BBE9-87F0B423DE2D}"
 	ProjectSection(SolutionItems) = preProject
+		AutoCover.vsmdi = AutoCover.vsmdi
 		IntegrationTests.testsettings = IntegrationTests.testsettings
 		UnitTests.testsettings = UnitTests.testsettings
 	EndProjectSection
@@ -19,7 +20,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Coverage.Counter", "Coverag
 EndProject
 Global
 	GlobalSection(TestCaseManagementSettings) = postSolution
-		CategoryFile = AutoCover2.vsmdi
+		CategoryFile = AutoCover.vsmdi
 	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

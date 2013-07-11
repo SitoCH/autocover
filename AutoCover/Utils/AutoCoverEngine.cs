@@ -33,7 +33,7 @@ namespace AutoCover
                     {
                         var currentTests = tmi.GetTests().ToList();
                         if (currentTests.Count == 0)
-                            return new List<UnitTest>();
+                            return _testResults.GetTestResults().Values.ToList();
                         Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Building));
                         // Build the tests projects
                         var testProjects = currentTests.Select(x => x.ProjectName).Distinct().ToList();
@@ -44,7 +44,7 @@ namespace AutoCover
                             {
                                 Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Building, project.Name));
                                 var buildOutput = new ProcessRunner(Environment.ExpandEnvironmentVariables(@"%windir%\Microsoft.net\Framework\v4.0.30319\msbuild.exe"), Path.GetDirectoryName(solution.FullName)).Run(string.Format("\"{0}\"", project.FullName));
-                                if (buildOutput.Contains("Build succeeded"))
+                                if (buildOutput.Item2 == 0)
                                 {
                                     var projectOutputFile = Instrument(solution, project);
                                     var ta = new TestAssembly { Name = project.Name, DllPath = projectOutputFile };
@@ -54,7 +54,7 @@ namespace AutoCover
                         }
                         var tests = Utils.FilterTests(document, _testResults, _coverageResults, tmi.GetTests().ToList());
                         if (testAssemblies.Count == 0 || tests.Count == 0)
-                            return new List<UnitTest>();
+                            return _testResults.GetTestResults().Values.ToList();
                         testAssemblies.ForEach(ta => ta.Tests = tests.Where(x => x.ProjectData.ProjectName == ta.Name).ToList());
 
                         var msTestPathExe = Utils.GetMSTestPath();
@@ -65,9 +65,8 @@ namespace AutoCover
                             var projectOutputFile = testAssembly.DllPath;
                             var testResultsFile = Path.Combine(Path.GetDirectoryName(projectOutputFile), "test.trx");
                             MSTestRunner.Run(processRunner, projectOutputFile, testResultsFile, testSettingsPath, testAssembly.Tests, _testResults);
-                            var coverageFile = Path.Combine(Path.GetDirectoryName(projectOutputFile), "coverage.xml.results");
-                            //ParseCoverageResults(coverageFile, _coverageResult, test.HumanReadableId);
-                            File.Delete(testResultsFile);
+                            var coverageFile = Path.Combine(Path.GetDirectoryName(projectOutputFile), "coverage.results.xml");
+                            ParseCoverageResults(coverageFile, tests, _coverageResults);
                         }
                         return _testResults.GetTestResults().Values.ToList();
                     }
@@ -108,33 +107,34 @@ namespace AutoCover
             return Path.Combine(newPath, fileName);
         }
 
-        /*private static void ParseCoverageResults(string coverageFile, CoverageResults coverageResult, string test)
+        private static void ParseCoverageResults(string coverageFile, List<ITestElement> tests, CoverageResults coverageResult)
         {
-            using (var coverageStream = new FileStream(coverageFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None, 4096, FileOptions.SequentialScan))
+            var testsCache = tests.ToDictionary(k => k.HumanReadableId, e => e.Id.Id);
+
+            using (var coverageStream = new FileStream(coverageFile, FileMode.Open))
             {
                 var xDoc = XDocument.Load(new XmlTextReader(coverageStream));
-                foreach (var module in xDoc.Descendants("module"))
+                foreach (var result in xDoc.Descendants("results"))
                 {
-                    foreach (var pt in module.Descendants("seqpnt"))
+                    foreach (var pt in result.Descendants("seqpnt"))
                     {
-                        var visitCount = int.Parse(pt.Attribute("visitcount").Value);
-                        if (visitCount > 0)
+                        var document = pt.Attribute("document").Value;
+                        var cb = new CodeBlock
+                            {
+                                Line = int.Parse(pt.Attribute("line").Value),
+                                Column = int.Parse(pt.Attribute("column").Value),
+                                EndLine = int.Parse(pt.Attribute("endline").Value),
+                                EndColumn = int.Parse(pt.Attribute("endcolumn").Value)
+                            };
+                        foreach (var test in pt.Descendants())
                         {
-                            var document = pt.Attribute("document").Value;
-                            var cb = new CodeBlock
-                                {
-                                    VisitCount = visitCount,
-                                    Line = int.Parse(pt.Attribute("line").Value),
-                                    Column = int.Parse(pt.Attribute("column").Value),
-                                    EndLine = int.Parse(pt.Attribute("endline").Value),
-                                    EndColumn = int.Parse(pt.Attribute("endcolumn").Value)
-                                };
-                            coverageResult.ProcessCodeBlock(test, document, cb);
+                            var testName = test.Attribute("name").Value;
+                            coverageResult.ProcessCodeBlock(testsCache[testName], document, cb);
                         }
                     }
                 }
             }
-        } */
+        }
 
 
         private static IEnumerable<string> GetAssemblies(string fullPath)

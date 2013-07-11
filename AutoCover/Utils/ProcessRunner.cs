@@ -15,7 +15,7 @@ namespace AutoCover
             _startInfo = new ProcessStartInfo { WorkingDirectory = workingDir, FileName = exe, UseShellExecute = false, RedirectStandardOutput = true, CreateNoWindow = true };
         }
 
-        public string Run(string arguments)
+        public Tuple<string, int> Run(string arguments)
         {
             var outputBuilder = new StringBuilder();
             _startInfo.Arguments = arguments;
@@ -25,7 +25,7 @@ namespace AutoCover
             proc.BeginOutputReadLine();
             proc.WaitForExit();
             proc.CancelOutputRead();
-            return outputBuilder.ToString();
+            return new Tuple<string, int>(outputBuilder.ToString(), proc.ExitCode);
         }
     }
 }

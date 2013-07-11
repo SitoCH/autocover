@@ -54,6 +54,12 @@ namespace Coverage
             //These handlers execute flushing all hit counts to the xml file
             AppDomain.CurrentDomain.DomainUnload += delegate { FlushCounter(); };
             AppDomain.CurrentDomain.ProcessExit += delegate { FlushCounter(); };
+            AppDomain.CurrentDomain.UnhandledException += delegate { UnhandledException(); };
+        }
+
+        private static void UnhandledException()
+        {
+            Console.WriteLine("UnhandledException");
         }
 
         /// <summary>
@@ -62,7 +68,12 @@ namespace Coverage
         /// </summary>
         public static string CoverageFilePath
         {
-            get { return @"c:\temp\BINS\cReport.xml"; }
+            get { return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "cReport.xml"); }
+        }
+
+        public static string CoverageFilePathResults
+        {
+            get { return CoverageFilePath.Replace(".xml", ".results.xml"); }
         }
 
         /// <summary>
@@ -100,7 +111,9 @@ namespace Coverage
             {
                 using (var coverageFile = new FileStream(CoverageFilePath, FileMode.Open))
                 {
-                    var resultsDoc = new XDocument(;
+                    var results = new XElement("results");
+                    var resultsDoc = new XDocument(results);
+
                     //Edit xml report to store new hits
                     var xDoc = XDocument.Load(new XmlTextReader(coverageFile));
 
@@ -131,15 +144,25 @@ namespace Coverage
                             var column = int.Parse(pt.Attribute("column").Value);
                             var endLine = int.Parse(pt.Attribute("endline").Value);
                             var endColumn = int.Parse(pt.Attribute("endcolumn").Value);
-                            //var document = pt.Attribute("document").Value;
+                            var document = pt.Attribute("document").Value;
 
-                            resultsDoc.Add(new XElement("seqpnt", new XAttribute("line", line),
-                                new XAttribute("column", column),
-                                new XAttribute("endline", endLine),
-                                new XAttribute("endcolumn", endColumn)));
+                            var ptXml = new XElement("seqpnt", new XAttribute("line", line),
+                                 new XAttribute("column", column),
+                                 new XAttribute("endline", endLine),
+                                 new XAttribute("endcolumn", endColumn),
+                                 new XAttribute("document", document));
+
+                            var hasChildren = false;
+                            foreach (var test in moduleHits[counter])
+                            {
+                                ptXml.Add(new XElement("test", new XAttribute("name", test)));
+                                hasChildren = true;
+                            }
+                            if (hasChildren)
+                                results.Add(ptXml);
                         }
                     }
-                    resultsDoc.Save(CoverageFilePath + ".results");
+                    resultsDoc.Save(CoverageFilePathResults);
                 }
             }
             finally
@@ -150,10 +173,7 @@ namespace Coverage
 
             try
             {
-                Console.WriteLine(
-                    "Coverage statistics flushing took {0:N} seconds",
-                    new TimeSpan(flushEnd.Ticks - flushStart.Ticks).TotalSeconds
-                );
+                Console.WriteLine("Coverage statistics flushing took {0:N} seconds", new TimeSpan(flushEnd.Ticks - flushStart.Ticks).TotalSeconds);
             }
             catch (Exception) { }
         }
