@@ -100,47 +100,46 @@ namespace Coverage
             {
                 using (var coverageFile = new FileStream(CoverageFilePath, FileMode.Open))
                 {
-                    using (var resultsFile = new FileStream(CoverageFilePath + ".results", FileMode.Create))
+                    var resultsDoc = new XDocument(;
+                    //Edit xml report to store new hits
+                    var xDoc = XDocument.Load(new XmlTextReader(coverageFile));
+
+                    var startTimeAttr = xDoc.Root.Attribute("startTime");
+                    var measureTimeAttr = xDoc.Root.Attribute("measureTime");
+                    var oldStartTime = DateTime.ParseExact(startTimeAttr.Value, "o", null);
+                    var oldMeasureTime = DateTime.ParseExact(measureTimeAttr.Value, "o", null);
+
+                    _startTime = _startTime < oldStartTime ? _startTime : oldStartTime; //Min
+                    _measureTime = _measureTime > oldMeasureTime ? _measureTime : oldMeasureTime; //Max
+
+                    startTimeAttr.SetValue(_startTime.ToString("o"));
+                    measureTimeAttr.SetValue(_measureTime.ToString("o"));
+
+                    foreach (var pair in hitCounts)
                     {
-                        var resultsDoc = new XmlDocument();
+                        var moduleId = pair.Key;
+                        var moduleHits = pair.Value;
+                        var xModule = xDoc.Descendants("module").First(el => el.Attribute("moduleId").Value == moduleId);
 
-                        //Edit xml report to store new hits
-                        var xDoc = XDocument.Load(new XmlTextReader(coverageFile));
-
-                        var startTimeAttr = xDoc.Root.Attribute("startTime");
-                        var measureTimeAttr = xDoc.Root.Attribute("measureTime");
-                        var oldStartTime = DateTime.ParseExact(startTimeAttr.Value, "o", null);
-                        var oldMeasureTime = DateTime.ParseExact(measureTimeAttr.Value, "o", null);
-
-                        _startTime = _startTime < oldStartTime ? _startTime : oldStartTime; //Min
-                        _measureTime = _measureTime > oldMeasureTime ? _measureTime : oldMeasureTime; //Max
-
-                        startTimeAttr.SetValue(_startTime.ToString("o"));
-                        measureTimeAttr.SetValue(_measureTime.ToString("o"));
-
-                        foreach (var pair in hitCounts)
+                        var counter = 0;
+                        foreach (var pt in xModule.Descendants("seqpnt"))
                         {
-                            var moduleId = pair.Key;
-                            var moduleHits = pair.Value;
-                            var xModule = xDoc.Descendants("module").First(el => el.Attribute("moduleId").Value == moduleId);
+                            counter++;
+                            if (!moduleHits.ContainsKey(counter))
+                                continue;
+                            var line = int.Parse(pt.Attribute("line").Value);
+                            var column = int.Parse(pt.Attribute("column").Value);
+                            var endLine = int.Parse(pt.Attribute("endline").Value);
+                            var endColumn = int.Parse(pt.Attribute("endcolumn").Value);
+                            //var document = pt.Attribute("document").Value;
 
-                            var counter = 0;
-                            foreach (var pt in xModule.Descendants("seqpnt"))
-                            {
-                                counter++;
-                                if (!moduleHits.ContainsKey(counter))
-                                    continue;
-
-                                //var visits = int.Parse(pt.Attribute("visitcount").Value);
-                                //pt.SetAttributeValue("visitcount", visits + moduleHits[counter]);
-                            }
-                        }
-
-                        using (var writer = XmlWriter.Create(resultsFile))
-                        {
-                            resultsDoc.WriteTo(writer);
+                            resultsDoc.Add(new XElement("seqpnt", new XAttribute("line", line),
+                                new XAttribute("column", column),
+                                new XAttribute("endline", endLine),
+                                new XAttribute("endcolumn", endColumn)));
                         }
                     }
+                    resultsDoc.Save(CoverageFilePath + ".results");
                 }
             }
             finally
