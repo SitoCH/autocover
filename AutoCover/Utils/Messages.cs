@@ -36,4 +36,8 @@ namespace AutoCover
             Message = message;
         }
     }
+
+    public class RefreshTaggerMessage
+    {
+    }
 }

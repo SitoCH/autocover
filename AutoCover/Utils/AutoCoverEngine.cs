@@ -74,8 +74,14 @@ namespace AutoCover
                     {
                         Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Idle));
                         Messenger.Default.Send(new TestsResultsMessage(ct.Result));
+                        Messenger.Default.Send(new RefreshTaggerMessage());
                     });
 
+        }
+
+        public static bool IsLineCovered(string document, int line)
+        {
+            return _coverageResults.IsLineCovered(document, line);
         }
 
         public static void Reset()

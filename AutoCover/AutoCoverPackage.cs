@@ -14,6 +14,8 @@ using Microsoft.VisualStudio.Shell;
 using EnvDTE;
 using EnvDTE80;
 using AutoCover;
+using System.Collections.Generic;
+using GalaSoft.MvvmLight.Messaging;
 
 namespace SimoneGrignola.AutoCover
 {
@@ -45,6 +47,7 @@ namespace SimoneGrignola.AutoCover
         private DocumentEvents _documentEvents;
         private SolutionEvents _solutionEvents;
         private ITestManagement _testManagement;
+        private WindowEvents _windowEvents;
 
         /// <summary>
         /// Default constructor of the package.
@@ -106,9 +109,22 @@ namespace SimoneGrignola.AutoCover
                 _DTE.SuppressUI = true;
                 _documentEvents = _DTE.Events.DocumentEvents;
                 _documentEvents.DocumentSaved += DocumentEvents_DocumentSaved;
+                _windowEvents = _DTE.Events.WindowEvents;
+                _windowEvents.WindowActivated += WindowEvents_WindowActivated;
                 _solutionEvents = _DTE.Events.SolutionEvents;
                 _solutionEvents.Opened += _solutionEvents_Opened;
+                _solutionEvents.AfterClosing += _solutionEvents_AfterClosing;
             }
+        }
+
+        void WindowEvents_WindowActivated(Window GotFocus, Window LostFocus)
+        {
+            Messenger.Default.Send(new RefreshTaggerMessage());
+        }
+
+        void _solutionEvents_AfterClosing()
+        {
+            Messenger.Default.Send(new TestsResultsMessage(new List<UnitTest>()));
         }
 
         void _solutionEvents_Opened()

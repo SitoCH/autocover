@@ -5,6 +5,7 @@ using System.Text;
 using System.IO;
 using Microsoft.VisualStudio.TestTools.Common;
 using EnvDTE;
+using Microsoft.VisualStudio.Text;
 
 namespace AutoCover
 {
@@ -39,6 +40,17 @@ namespace AutoCover
                     return alternative;
             }
             throw new FileNotFoundException("Could not locate MSTest.exe.");
+        }
+
+        public static ITextDocument GetTextDocument(this ITextBuffer TextBuffer)
+        {
+            ITextDocument textDoc;
+            var rc = TextBuffer.Properties.TryGetProperty<ITextDocument>(
+              typeof(ITextDocument), out textDoc);
+            if (rc == true)
+                return textDoc;
+            else
+                return null;
         }
 
         public static List<ITestElement> FilterTests(Document document, TestResults testsResults, CoverageResults coverageResults, List<ITestElement> suggestedTests)

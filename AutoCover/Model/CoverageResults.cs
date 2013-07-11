@@ -9,14 +9,16 @@ namespace AutoCover
 {
     public class CoverageResults
     {
-        //private readonly Dictionary<string, List<CodeBlock>> _documents = new Dictionary<string, List<CodeBlock>>();
+        // Document path -> code blocks
+        private readonly Dictionary<string, List<CodeBlock>> _documents = new Dictionary<string, List<CodeBlock>>(StringComparer.OrdinalIgnoreCase);
+        // Document path -> tests ids
         private readonly Dictionary<string, HashSet<Guid>> _impactedTests = new Dictionary<string, HashSet<Guid>>(StringComparer.OrdinalIgnoreCase);
 
         public void ProcessCodeBlock(Guid testId, string document, CodeBlock cb)
         {
-            //if (!_documents.ContainsKey(document))
-            //    _documents.Add(document, new List<CodeBlock>());
-            //_documents[document].Add(cb);
+            if (!_documents.ContainsKey(document))
+                _documents.Add(document, new List<CodeBlock>());
+            _documents[document].Add(cb);
 
             if (!_impactedTests.ContainsKey(document))
                 _impactedTests.Add(document, new HashSet<Guid>());
@@ -33,13 +35,17 @@ namespace AutoCover
             if (_impactedTests.ContainsKey(document))
             {
                 var impactedTests = _impactedTests[document];
-                foreach (var test in impactedTests)
-                {
-                    //_documents.Remove(test);
-                }
+                _documents.Remove(document);
                 return impactedTests;
             }
             return new HashSet<Guid>();
+        }
+
+        public bool IsLineCovered(string document, int line)
+        {
+            if (!_documents.ContainsKey(document))
+                return false;
+            return _documents[document].Any(x => line >= x.Line && line <= x.EndLine);
         }
     }
 
