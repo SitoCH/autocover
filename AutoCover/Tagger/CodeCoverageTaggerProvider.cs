@@ -1,24 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
-using System.Diagnostics.CodeAnalysis;
-using System.Windows.Media;
 using System.Linq;
-using System.Text;
+using System.Windows.Media;
+using GalaSoft.MvvmLight.Messaging;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Classification;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Text.Operations;
 using Microsoft.VisualStudio.Text.Tagging;
 using Microsoft.VisualStudio.Utilities;
-using GalaSoft.MvvmLight.Messaging;
-
 
 namespace AutoCover
 {
-    [Export(typeof(IViewTaggerProvider))]
     [ContentType("any")]
     [TagType(typeof(ClassificationTag))]
+    [Export(typeof(IViewTaggerProvider))]
     public sealed class CodeCoverageTaggerProvider : IViewTaggerProvider
     {
         [Import]
@@ -32,58 +29,104 @@ namespace AutoCover
             if (buffer != textView.TextBuffer || textView.TextBuffer.GetTextDocument() == null)
                 return null;
 
-            var classType = Registry.GetClassificationType("code-coverage-covered");
-            return new CodeCoverageTagger(textView, TextSearchService, classType) as ITagger<T>;
+            var codeCoveragePassedBackgroundType = Registry.GetClassificationType("code-coverage-passed-covered");
+            var codeCoverageFailedBackgroundType = Registry.GetClassificationType("code-coverage-failed-covered");
+            return new CodeCoveragePassedTagger(textView, codeCoveragePassedBackgroundType, codeCoverageFailedBackgroundType) as ITagger<T>;
         }
     }
 
     public static class TypeExports
     {
+        [Name("code-coverage-passed-covered")]
         [Export(typeof(ClassificationTypeDefinition))]
-        [Name("code-coverage-covered")]
-        public static ClassificationTypeDefinition OrdinaryClassificationType;
+        public static ClassificationTypeDefinition CodeCoveragePassedBackground;
+
+        [Name("code-coverage-failed-covered")]
+        [Export(typeof(ClassificationTypeDefinition))]
+        public static ClassificationTypeDefinition CodeCoverageFailedBackground;
     }
 
     [Export(typeof(EditorFormatDefinition))]
-    [ClassificationType(ClassificationTypeNames = "code-coverage-covered")]
-    [Name("code-coverage-covered")]
+    [ClassificationType(ClassificationTypeNames = "code-coverage-passed-covered")]
+    [Name("code-coverage-passed-covered")]
     [UserVisible(true)]
     [Order(After = Priority.High)]
-    public sealed class CodeCoverageBackground : ClassificationFormatDefinition
+    public sealed class CodeCoveragePassedBackground : ClassificationFormatDefinition
     {
-        public CodeCoverageBackground()
+        public CodeCoveragePassedBackground()
         {
-            DisplayName = "Code coverage background";
+            DisplayName = "Code coverage passed background";
             BackgroundColor = Colors.LightGreen;
         }
     }
 
-    public sealed class CodeCoverageTagger : ITagger<ClassificationTag>
+    [Export(typeof(EditorFormatDefinition))]
+    [ClassificationType(ClassificationTypeNames = "code-coverage-failed-covered")]
+    [Name("code-coverage-failed-covered")]
+    [UserVisible(true)]
+    [Order(After = Priority.High)]
+    public sealed class CodeCoverageFailedBackground : ClassificationFormatDefinition
     {
-        private readonly ITextView _view;
+        public CodeCoverageFailedBackground()
+        {
+            DisplayName = "Code coverage failed background";
+            BackgroundColor = Colors.LightCoral;
+        }
+    }
+
+    public sealed class CodeCoveragePassedTagger : ITagger<ClassificationTag>
+    {
         private readonly string _filePath;
-        private readonly ITextSearchService _searchService;
-        private readonly IClassificationType _type;
-        private NormalizedSnapshotSpanCollection _currentSpans;
+        private readonly IClassificationType _codeCoveragePassedBackgroundType, _codeCoverageFailedBackgroundType;
+        private readonly ITextView _view;
+        private NormalizedSnapshotSpanCollection _currentPassedSpans, _currentFailedSpans;
 
-        public event EventHandler<SnapshotSpanEventArgs> TagsChanged = delegate { };
-
-        public CodeCoverageTagger(ITextView view, ITextSearchService searchService, IClassificationType type)
+        public CodeCoveragePassedTagger(ITextView view, IClassificationType codeCoveragePassedBackgroundType, IClassificationType codeCoverageFailedBackgroundType)
         {
             _view = view;
             _filePath = view.TextBuffer.GetTextDocument().FilePath;
-            _searchService = searchService;
-            _type = type;
+            _codeCoveragePassedBackgroundType = codeCoveragePassedBackgroundType;
+            _codeCoverageFailedBackgroundType = codeCoverageFailedBackgroundType;
 
             RefreshSpans(_view.TextSnapshot);
-            _currentSpans = new NormalizedSnapshotSpanCollection();
+            _currentPassedSpans = new NormalizedSnapshotSpanCollection();
+            _currentFailedSpans = new NormalizedSnapshotSpanCollection();
+
             _view.GotAggregateFocus += SetupSelectionChangedListener;
             _view.Closed += _view_Closed;
-
             Messenger.Default.Register<RefreshTaggerMessage>(this, m => RefreshSnapShot(_view.TextSnapshot));
         }
 
-        void _view_Closed(object sender, EventArgs e)
+        public event EventHandler<SnapshotSpanEventArgs> TagsChanged = delegate { };
+
+        public IEnumerable<ITagSpan<ClassificationTag>> GetTags(NormalizedSnapshotSpanCollection originalSpans)
+        {
+            if (originalSpans == null || originalSpans.Count == 0)
+                yield break;
+
+            if (_currentPassedSpans.Any())
+            {
+                var snapshot = _currentPassedSpans[0].Snapshot;
+                var spans = new NormalizedSnapshotSpanCollection(originalSpans.Select(s => s.TranslateTo(snapshot, SpanTrackingMode.EdgeExclusive)));
+
+                foreach (var span in NormalizedSnapshotSpanCollection.Intersection(_currentPassedSpans, spans))
+                {
+                    yield return new TagSpan<ClassificationTag>(span, new ClassificationTag(_codeCoveragePassedBackgroundType));
+                }
+            }
+            if (_currentFailedSpans.Any())
+            {
+                var snapshot = _currentFailedSpans[0].Snapshot;
+                var spans = new NormalizedSnapshotSpanCollection(originalSpans.Select(s => s.TranslateTo(snapshot, SpanTrackingMode.EdgeExclusive)));
+
+                foreach (var span in NormalizedSnapshotSpanCollection.Intersection(_currentFailedSpans, spans))
+                {
+                    yield return new TagSpan<ClassificationTag>(span, new ClassificationTag(_codeCoverageFailedBackgroundType));
+                }
+            }
+        }
+
+        private void _view_Closed(object sender, EventArgs e)
         {
             Messenger.Default.Unregister<RefreshTaggerMessage>(this);
         }
@@ -113,21 +156,18 @@ namespace AutoCover
 
         private void RefreshSpans(ITextSnapshot snapshot)
         {
-            _currentSpans = new NormalizedSnapshotSpanCollection(snapshot.Lines.Where(x => AutoCoverEngine.IsLineCovered(_filePath, x.LineNumber + 1)).Select(x => x.Extent));
-        }
-
-        public IEnumerable<ITagSpan<ClassificationTag>> GetTags(NormalizedSnapshotSpanCollection spans)
-        {
-            if (spans == null || spans.Count == 0 || _currentSpans.Count == 0)
-                yield break;
-
-            var snapshot = _currentSpans[0].Snapshot;
-            spans = new NormalizedSnapshotSpanCollection(spans.Select(s => s.TranslateTo(snapshot, SpanTrackingMode.EdgeExclusive)));
-
-            foreach (var span in NormalizedSnapshotSpanCollection.Intersection(_currentSpans, spans))
+            var passedSpans = new List<SnapshotSpan>();
+            var failedSpans = new List<SnapshotSpan>();
+            foreach (var line in snapshot.Lines)
             {
-                yield return new TagSpan<ClassificationTag>(span, new ClassificationTag(_type));
+                var status = AutoCoverEngine.GetLineResult(_filePath, line.LineNumber + 1);
+                if (status == CodeCoverageResult.Passed)
+                    passedSpans.Add(line.Extent);
+                else if (status == CodeCoverageResult.Failed)
+                    failedSpans.Add(line.Extent);
             }
+            _currentPassedSpans = new NormalizedSnapshotSpanCollection(passedSpans);
+            _currentFailedSpans = new NormalizedSnapshotSpanCollection(failedSpans);
         }
     }
 }

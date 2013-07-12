@@ -81,9 +81,14 @@ namespace AutoCover
 
         }
 
-        public static bool IsLineCovered(string document, int line)
+        public static CodeCoverageResult GetLineResult(string document, int line)
         {
-            return _coverageResults.IsLineCovered(document, line);
+            var testIds = _coverageResults.GetTestsFor(document, line);
+            if (testIds == null || !testIds.Any())
+                return CodeCoverageResult.NotCovered;
+            if (testIds.Select(x => _testResults.GetTestResults()[x]).Any(x => x.Result == UnitTestResult.Failed))
+                return CodeCoverageResult.Failed;
+            return CodeCoverageResult.Passed;
         }
 
         public static void Reset()

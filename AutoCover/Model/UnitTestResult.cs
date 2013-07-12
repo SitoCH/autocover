@@ -4,10 +4,15 @@ using System.Linq;
 using System.Text;
 
 namespace AutoCover
-{ 
+{
+    public enum CodeCoverageResult
+    {
+        Passed, Failed, NotCovered
+    }
+
     public enum UnitTestResult
     {
-        Passed, Failed 
+        Passed, Failed
     }
 
     public class UnitTest
