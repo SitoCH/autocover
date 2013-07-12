@@ -113,7 +113,7 @@ namespace AutoCover
 
         private void RefreshSpans(ITextSnapshot snapshot)
         {
-            _currentSpans = new NormalizedSnapshotSpanCollection(snapshot.Lines.Where(x => AutoCoverEngine.IsLineCovered(_filePath, x.LineNumber)).Select(x => x.Extent));
+            _currentSpans = new NormalizedSnapshotSpanCollection(snapshot.Lines.Where(x => AutoCoverEngine.IsLineCovered(_filePath, x.LineNumber + 1)).Select(x => x.Extent));
         }
 
         public IEnumerable<ITagSpan<ClassificationTag>> GetTags(NormalizedSnapshotSpanCollection spans)

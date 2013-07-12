@@ -43,7 +43,7 @@ namespace AutoCover
                             if (testProjects.Contains(project.Name))
                             {
                                 Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Building, project.Name));
-                                var buildOutput = new ProcessRunner(Environment.ExpandEnvironmentVariables(@"%windir%\Microsoft.net\Framework\v4.0.30319\msbuild.exe"), Path.GetDirectoryName(solution.FullName)).Run(string.Format("\"{0}\"", project.FullName));
+                                var buildOutput = new ProcessRunner(Environment.ExpandEnvironmentVariables(@"%windir%\Microsoft.net\Framework\v4.0.30319\msbuild.exe"), Path.GetDirectoryName(solution.FullName)).Run(string.Format("\"{0}\" /P:Configuration={1}", project.FullName, solution.SolutionBuild.ActiveConfiguration.Name));
                                 if (buildOutput.Item2 == 0)
                                 {
                                     var projectOutputFile = Instrument(solution, project);
@@ -61,10 +61,11 @@ namespace AutoCover
                         var processRunner = new ProcessRunner(msTestPathExe, Path.GetDirectoryName(msTestPathExe));
                         foreach (var testAssembly in testAssemblies)
                         {
-                            Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Testing, testAssembly.Name));
+                            Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Testing, string.Format("{0} ({1} tests)", testAssembly.Name, testAssembly.Tests.Count)));
                             var projectOutputFile = testAssembly.DllPath;
                             var testResultsFile = Path.Combine(Path.GetDirectoryName(projectOutputFile), "test.trx");
                             MSTestRunner.Run(processRunner, projectOutputFile, testResultsFile, testSettingsPath, testAssembly.Tests, _testResults);
+                            Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Testing, string.Format("{0} (parsing coverage results)", testAssembly.Name)));
                             var coverageFile = Path.Combine(Path.GetDirectoryName(projectOutputFile), "coverage.results.xml");
                             ParseCoverageResults(coverageFile, tests, _coverageResults);
                         }

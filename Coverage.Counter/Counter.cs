@@ -111,58 +111,65 @@ namespace Coverage
             {
                 using (var coverageFile = new FileStream(CoverageFilePath, FileMode.Open))
                 {
-                    var results = new XElement("results");
-                    var resultsDoc = new XDocument(results);
-
-                    //Edit xml report to store new hits
-                    var xDoc = XDocument.Load(new XmlTextReader(coverageFile));
-
-                    var startTimeAttr = xDoc.Root.Attribute("startTime");
-                    var measureTimeAttr = xDoc.Root.Attribute("measureTime");
-                    var oldStartTime = DateTime.ParseExact(startTimeAttr.Value, "o", null);
-                    var oldMeasureTime = DateTime.ParseExact(measureTimeAttr.Value, "o", null);
-
-                    _startTime = _startTime < oldStartTime ? _startTime : oldStartTime; //Min
-                    _measureTime = _measureTime > oldMeasureTime ? _measureTime : oldMeasureTime; //Max
-
-                    startTimeAttr.SetValue(_startTime.ToString("o"));
-                    measureTimeAttr.SetValue(_measureTime.ToString("o"));
-
-                    foreach (var pair in hitCounts)
+                    using (var writer = XmlWriter.Create(CoverageFilePathResults))
                     {
-                        var moduleId = pair.Key;
-                        var moduleHits = pair.Value;
-                        var xModule = xDoc.Descendants("module").First(el => el.Attribute("moduleId").Value == moduleId);
+                        writer.WriteStartDocument();
+                        writer.WriteStartElement("results");
 
-                        var counter = 0;
-                        foreach (var pt in xModule.Descendants("seqpnt"))
+                        //Edit xml report to store new hits
+                        var xDoc = XDocument.Load(new XmlTextReader(coverageFile));
+
+                        var startTimeAttr = xDoc.Root.Attribute("startTime");
+                        var measureTimeAttr = xDoc.Root.Attribute("measureTime");
+                        var oldStartTime = DateTime.ParseExact(startTimeAttr.Value, "o", null);
+                        var oldMeasureTime = DateTime.ParseExact(measureTimeAttr.Value, "o", null);
+
+                        _startTime = _startTime < oldStartTime ? _startTime : oldStartTime; //Min
+                        _measureTime = _measureTime > oldMeasureTime ? _measureTime : oldMeasureTime; //Max
+
+                        startTimeAttr.SetValue(_startTime.ToString("o"));
+                        measureTimeAttr.SetValue(_measureTime.ToString("o"));
+
+                        foreach (var pair in hitCounts)
                         {
-                            counter++;
-                            if (!moduleHits.ContainsKey(counter))
-                                continue;
-                            var line = int.Parse(pt.Attribute("line").Value);
-                            var column = int.Parse(pt.Attribute("column").Value);
-                            var endLine = int.Parse(pt.Attribute("endline").Value);
-                            var endColumn = int.Parse(pt.Attribute("endcolumn").Value);
-                            var document = pt.Attribute("document").Value;
+                            var moduleId = pair.Key;
+                            var moduleHits = pair.Value;
+                            var xModule = xDoc.Descendants("module").First(el => el.Attribute("moduleId").Value == moduleId);
 
-                            var ptXml = new XElement("seqpnt", new XAttribute("line", line),
-                                 new XAttribute("column", column),
-                                 new XAttribute("endline", endLine),
-                                 new XAttribute("endcolumn", endColumn),
-                                 new XAttribute("document", document));
-
-                            var hasChildren = false;
-                            foreach (var test in moduleHits[counter])
+                            var counter = 0;
+                            foreach (var pt in xModule.Descendants("seqpnt"))
                             {
-                                ptXml.Add(new XElement("test", new XAttribute("name", test)));
-                                hasChildren = true;
+                                counter++;
+                                if (!moduleHits.ContainsKey(counter))
+                                    continue;
+                                var line = int.Parse(pt.Attribute("line").Value);
+                                var column = int.Parse(pt.Attribute("column").Value);
+                                var endLine = int.Parse(pt.Attribute("endline").Value);
+                                var endColumn = int.Parse(pt.Attribute("endcolumn").Value);
+                                var document = pt.Attribute("document").Value;
+
+
+                                if (moduleHits[counter].Count > 0)
+                                {
+                                    writer.WriteStartElement("seqpnt");
+                                    writer.WriteAttributeString("line", line.ToString());
+                                    writer.WriteAttributeString("column", column.ToString());
+                                    writer.WriteAttributeString("endline", endLine.ToString());
+                                    writer.WriteAttributeString("endcolumn", endColumn.ToString());
+                                    writer.WriteAttributeString("document", document);
+                                    foreach (var test in moduleHits[counter])
+                                    {
+                                        writer.WriteStartElement("test");
+                                        writer.WriteAttributeString("name", test);
+                                        writer.WriteEndElement();
+                                    }
+                                    writer.WriteEndElement();
+                                }
                             }
-                            if (hasChildren)
-                                results.Add(ptXml);
                         }
+                        writer.WriteEndElement();
+                        writer.WriteEndDocument();
                     }
-                    resultsDoc.Save(CoverageFilePathResults);
                 }
             }
             finally
@@ -185,6 +192,8 @@ namespace Coverage
         {
             lock (Hits)
             {
+                if (string.IsNullOrWhiteSpace(_currentTest))
+                    return;
                 if (!Hits.ContainsKey(moduleId))
                     Hits[moduleId] = new Dictionary<int, HashSet<string>>();
                 if (!Hits[moduleId].ContainsKey(hitPointId))
