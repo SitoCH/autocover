@@ -43,7 +43,8 @@ namespace AutoCover
                             if (testProjects.Contains(project.Name))
                             {
                                 Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Building, project.Name));
-                                var buildOutput = new ProcessRunner(Environment.ExpandEnvironmentVariables(@"%windir%\Microsoft.net\Framework\v4.0.30319\msbuild.exe"), Path.GetDirectoryName(solution.FullName)).Run(string.Format("\"{0}\" /P:Configuration={1}", project.FullName, solution.SolutionBuild.ActiveConfiguration.Name));
+                                var runner = new ProcessRunner(Environment.ExpandEnvironmentVariables(@"%windir%\Microsoft.net\Framework\v4.0.30319\msbuild.exe"), Path.GetDirectoryName(solution.FullName));
+                                var buildOutput = runner.Run(string.Format("\"{0}\"", project.FullName));
                                 if (buildOutput.Item2 == 0)
                                 {
                                     var projectOutputFile = Instrument(solution, project);
