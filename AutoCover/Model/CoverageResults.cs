@@ -38,6 +38,19 @@ namespace AutoCover
             {
                 var impactedTests = _impactedTests[document];
                 _documents.Remove(document);
+                _impactedTests.Remove(document);
+                foreach (var otherDocument in _documents)
+                {
+                    var toRemove = new List<CodeBlock>();
+                    foreach (var cb in otherDocument.Value)
+                    {
+                        cb.Value.RemoveWhere(x => impactedTests.Contains(x));
+                        if (cb.Value.Count == 0)
+                            toRemove.Add(cb.Key);
+                    }
+                    foreach (var cbToRemove in toRemove)
+                        otherDocument.Value.Remove(cbToRemove);
+                }
                 return impactedTests;
             }
             return new HashSet<Guid>();

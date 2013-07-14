@@ -48,9 +48,18 @@ namespace AutoCover_UnitTests
         }
 
         [TestMethod]
+        public void TestSaveWith1HitAndNoCoverageFileAndNoTtest()
+        {
+            Counter.Hit("module1", 1);
+            Counter.FlushCounter();
+            Assert.IsFalse(File.Exists(Counter.CoverageFilePath));
+        }
+
+        [TestMethod]
         [ExpectedException(typeof(FileNotFoundException))]
         public void TestSaveWith1HitAndNoCoverageFile()
         {
+            Counter.SetCurrentTest("MyTest");
             Counter.Hit("module1", 1);
             Counter.FlushCounter();
         }
