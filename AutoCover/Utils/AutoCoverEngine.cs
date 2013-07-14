@@ -32,6 +32,10 @@ namespace AutoCover
                 {
                     lock (_lock)
                     {
+                        var settings = SettingsService.GetSettingsForSolution(solution);
+                        if (!settings.EnableAutoCover)
+                            return new List<UnitTest>();
+
                         var currentTests = tmi.GetTests().ToList();
                         if (currentTests.Count == 0)
                             return _testResults.GetTestResults().Values.ToList();

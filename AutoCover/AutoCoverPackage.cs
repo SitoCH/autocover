@@ -113,17 +113,19 @@ namespace SimoneGrignola.AutoCover
                 _windowEvents.WindowActivated += WindowEvents_WindowActivated;
                 _solutionEvents = _DTE.Events.SolutionEvents;
                 _solutionEvents.Opened += _solutionEvents_Opened;
+                _solutionEvents.BeforeClosing += _solutionEvents_BeforeClosing;
                 _solutionEvents.AfterClosing += _solutionEvents_AfterClosing;
             }
         }
 
-        void WindowEvents_WindowActivated(Window GotFocus, Window LostFocus)
+        void _solutionEvents_BeforeClosing()
         {
-            Messenger.Default.Send(new RefreshTaggerMessage());
+            SettingsService.UnloadSettings(_DTE.Solution);
         }
 
         void _solutionEvents_AfterClosing()
         {
+            AutoCoverEngine.Reset();
             Messenger.Default.Send(new TestsResultsMessage(new List<UnitTest>()));
         }
 
@@ -132,8 +134,16 @@ namespace SimoneGrignola.AutoCover
             AutoCoverEngine.Reset();
         }
 
+        void WindowEvents_WindowActivated(Window GotFocus, Window LostFocus)
+        {
+            Messenger.Default.Send(new RefreshTaggerMessage());
+        }
+
         void DocumentEvents_DocumentSaved(Document document)
         {
+            if (_DTE.Solution == null)
+                return;
+
             var tmi = _testManagement.TmiInstance;
             if (tmi != null)
             {
