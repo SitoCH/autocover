@@ -94,7 +94,7 @@ namespace AutoCover
 
             _view.GotAggregateFocus += SetupSelectionChangedListener;
             _view.Closed += _view_Closed;
-            Messenger.Default.Register<RefreshTaggerMessage>(this, m =>  RefreshSnapShot(_view.TextSnapshot));
+            Messenger.Default.Register<RefreshTaggerMessage>(this, m => RefreshSnapShot(_view.TextSnapshot));
         }
 
         public event EventHandler<SnapshotSpanEventArgs> TagsChanged = delegate { };
@@ -156,9 +156,11 @@ namespace AutoCover
 
         private void RefreshSpans(ITextSnapshot snapshot)
         {
-            if (snapshot.TextBuffer.GetTextDocument().LastContentModifiedTime > AutoCoverEngine.LastCheck)
+            var document = snapshot.TextBuffer.GetTextDocument();
+            if (document == null || document.LastContentModifiedTime > AutoCoverEngine.LastCheck || SettingsService.Settings.DisableRowHighlighting)
             {
                 _currentPassedSpans = new NormalizedSnapshotSpanCollection();
+                _currentFailedSpans = new NormalizedSnapshotSpanCollection();
                 return;
             }
 

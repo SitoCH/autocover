@@ -126,12 +126,14 @@ namespace SimoneGrignola.AutoCover
         void _solutionEvents_AfterClosing()
         {
             AutoCoverEngine.Reset();
-            Messenger.Default.Send(new TestsResultsMessage(new List<UnitTest>()));
+            Messenger.Default.Send(new SolutionStatusChangedMessage(SolutionStatus.Closed));
         }
 
         void _solutionEvents_Opened()
         {
+            SettingsService.LoadSettingsForSolution(_DTE.Solution);
             AutoCoverEngine.Reset();
+            Messenger.Default.Send(new SolutionStatusChangedMessage(SolutionStatus.Opened));
         }
 
         void WindowEvents_WindowActivated(Window GotFocus, Window LostFocus)

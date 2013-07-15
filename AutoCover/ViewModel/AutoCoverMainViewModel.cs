@@ -25,7 +25,37 @@ namespace AutoCover
                     RaisePropertyChanged("IsEngineRunningVisibility");
                     RaisePropertyChanged("EngineStatusLabel");
                 });
+            Messenger.Default.Register<SolutionStatusChangedMessage>(this, m =>
+                {
+                    Tests = new List<UnitTest>();
+                    RaisePropertyChanged("DisableRowHighlighting");
+                    RaisePropertyChanged("IsAutoCoverEnabled");
+                });
         }
+
+        public bool IsAutoCoverEnabled
+        {
+            get { return SettingsService.Settings.EnableAutoCover; }
+            set
+            {
+                SettingsService.Settings.EnableAutoCover = value;
+                AutoCoverEngine.Reset();
+                RaisePropertyChanged("IsAutoCoverEnabled");
+            }
+        }
+
+        public bool DisableRowHighlighting
+        {
+            get { return SettingsService.Settings.DisableRowHighlighting; }
+            set
+            {
+                SettingsService.Settings.DisableRowHighlighting = value;
+                Messenger.Default.Send(new RefreshTaggerMessage());
+                RaisePropertyChanged("DisableRowHighlighting");
+            }
+        }
+
+
 
         public List<UnitTest> Tests
         {

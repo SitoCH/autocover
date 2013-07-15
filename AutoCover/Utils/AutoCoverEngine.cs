@@ -1,20 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.IO;
-using System.Xml.Linq;
 using EnvDTE;
-using Coverage.Common;
-using Coverage.Report;
-using Coverage.Instrument;
-using Coverage;
-using System.Diagnostics;
-using System.Xml.Serialization;
-using System.Xml;
 using GalaSoft.MvvmLight.Messaging;
-using Microsoft.VisualStudio.TestTools.Vsip;
 using Microsoft.VisualStudio.TestTools.Common;
 
 namespace AutoCover
@@ -32,7 +22,7 @@ namespace AutoCover
                 {
                     lock (_lock)
                     {
-                        var settings = SettingsService.GetSettingsForSolution(solution);
+                        var settings = SettingsService.Settings;
                         if (!settings.EnableAutoCover)
                             return new List<UnitTest>();
 
@@ -41,11 +31,11 @@ namespace AutoCover
                             return _testResults.GetTestResults().Values.ToList();
                         Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Building));
                         // Build the tests projects
-                        var testProjects = currentTests.Select(x => x.ProjectName).Distinct().ToList();
                         var testAssemblies = new List<TestAssembly>();
                         foreach (Project project in solution.Projects)
                         {
-                            if (testProjects.Contains(project.Name))
+                            var ids = project.GetProjectTypeGuids();
+                            if (ids.Contains("{3AC096D0-A1C2-E12C-1390-A8335801FDAB}"))
                             {
                                 Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Building, project.Name));
 
@@ -59,7 +49,7 @@ namespace AutoCover
                             }
                         }
                         // Run all the impacted tests
-                        var tests = Utils.FilterTests(document, _testResults, _coverageResults, tmi.GetTests().ToList());
+                        var tests = FilterTests(document, _testResults, _coverageResults, tmi.GetTests().ToList());
                         if (testAssemblies.Count == 0 || tests.Count == 0)
                             return _testResults.GetTestResults().Values.ToList();
                         testAssemblies.ForEach(ta => ta.Tests = tests.Where(x => x.ProjectData.ProjectName == ta.Name).ToList());
@@ -85,6 +75,19 @@ namespace AutoCover
                     Messenger.Default.Send(new TestsResultsMessage(ct.Result));
                     Messenger.Default.Send(new RefreshTaggerMessage());
                 });
+        }
+
+        private static List<ITestElement> FilterTests(Document document, TestResults testsResults, CoverageResults coverageResults, List<ITestElement> suggestedTests)
+        {
+            if (testsResults.GetTestResults().Count == 0)
+                return suggestedTests;
+
+            testsResults.RemoveDeletedTests(suggestedTests);
+
+            var impactedTests = coverageResults.GetImpactedTests(document.FullName);
+            var oldTests = new HashSet<Guid>(testsResults.GetTestResults().Keys);
+
+            return suggestedTests.Where(x => impactedTests.Contains(x.Id.Id) || !oldTests.Contains(x.Id.Id)).ToList();
         }
 
         public static CodeCoverageResult GetLineResult(string document, int line)

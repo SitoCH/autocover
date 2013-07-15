@@ -10,17 +10,14 @@ namespace AutoCover
 {
     public class SettingsService
     {
-        private static Tuple<string, AutoCoverSettings> _currentSettings;
+        private static AutoCoverSettings _currentSettings;
 
-        public static AutoCoverSettings GetSettingsForSolution(Solution solution)
+        public static void LoadSettingsForSolution(Solution solution)
         {
-            if (_currentSettings != null && _currentSettings.Item1 == solution.FullName)
-                return _currentSettings.Item2;
-
             var settingsPath = GetSettingsPath(solution);
             if (!File.Exists(settingsPath))
             {
-                _currentSettings = new Tuple<string, AutoCoverSettings>(solution.FullName, new AutoCoverSettings());
+                _currentSettings = new AutoCoverSettings();
 
             }
             else
@@ -28,10 +25,14 @@ namespace AutoCover
                 var serializer = new XmlSerializer(typeof(AutoCoverSettings));
                 using (var txtW = new StreamReader(settingsPath))
                 {
-                    _currentSettings = new Tuple<string, AutoCoverSettings>(solution.FullName, (AutoCoverSettings)serializer.Deserialize(txtW));
+                    _currentSettings = (AutoCoverSettings)serializer.Deserialize(txtW);
                 }
             }
-            return _currentSettings.Item2;
+        }
+
+        public static AutoCoverSettings Settings
+        {
+            get { return _currentSettings ?? new AutoCoverSettings(); }
         }
 
         private static string GetSettingsPath(Solution solution)
@@ -49,7 +50,7 @@ namespace AutoCover
                 var serializer = new XmlSerializer(typeof(AutoCoverSettings));
                 using (var txtW = new StreamWriter(settingsPath))
                 {
-                    serializer.Serialize(txtW, _currentSettings.Item2);
+                    serializer.Serialize(txtW, _currentSettings);
                 }
                 _currentSettings = null;
             }
@@ -60,5 +61,7 @@ namespace AutoCover
     public class AutoCoverSettings
     {
         public bool EnableAutoCover { get; set; }
+
+        public bool DisableRowHighlighting { get; set; }
     }
 }

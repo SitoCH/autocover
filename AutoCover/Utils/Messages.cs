@@ -40,4 +40,19 @@ namespace AutoCover
     public class RefreshTaggerMessage
     {
     }
+
+    public enum SolutionStatus
+    {
+        Opened, Closed
+    }
+
+    public class SolutionStatusChangedMessage
+    {
+        public SolutionStatus Status { get; private set; }
+
+        public SolutionStatusChangedMessage(SolutionStatus status)
+        {
+            Status = status;
+        }
+    }
 }

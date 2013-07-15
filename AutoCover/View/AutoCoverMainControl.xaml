@@ -14,10 +14,21 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        
         <TextBlock Margin="10,10,10,5" Text="{Binding Path=EngineStatusLabel}" />
-        <ProgressBar Grid.Row="1" Margin="10,5,10,5" Height="5" 
+
+        <ToggleButton Grid.Column="1" Margin="10,10,10,5" Content="Enable code coverage" IsChecked="{Binding Path=IsAutoCoverEnabled}" />
+        <ToggleButton Grid.Column="2" Margin="10,10,10,5" Content="Disable highlighting" IsChecked="{Binding Path=DisableRowHighlighting}" />
+        
+        <ProgressBar Grid.Row="1" Grid.ColumnSpan="3" Margin="10,5,10,5" Height="5" 
                      IsIndeterminate="True" Visibility="{Binding Path=IsEngineRunningVisibility}" />
-        <ListView Grid.Row="2" Margin="10,5,10,10" ItemsSource="{Binding Path=Tests}">
+        
+        <ListView Grid.Row="2" Grid.ColumnSpan="3" Margin="10,5,10,10" ItemsSource="{Binding Path=Tests}">
             <ListView.View>
                 <GridView>
                     <GridViewColumn Header="Name" Width="300" DisplayMemberBinding="{Binding Name}" />
