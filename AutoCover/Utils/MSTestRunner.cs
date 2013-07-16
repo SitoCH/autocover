@@ -37,7 +37,6 @@ namespace AutoCover
                         testLink.SetAttribute("id", testElement.Id.ToString("D"));
                         testLink.SetAttribute("name", testElement.HumanReadableId);
                         testLink.SetAttribute("storage", projectDll);
-                        testLink.SetAttribute("type", "Microsoft.VisualStudio.TestTools.TestTypes.Unit.UnitTestElement, Microsoft.VisualStudio.QualityTools.Tips.UnitTest.ObjectModel, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a");
                         e.AppendChild(testLink);
                     }
                     xmlDoc.WriteTo(xmlTextWriter);

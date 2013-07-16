@@ -22,9 +22,12 @@ namespace AutoCover
                 {
                     lock (_lock)
                     {
-                        var settings = SettingsService.Settings;
-                        if (!settings.EnableAutoCover)
+                        if (! SettingsService.Settings.EnableAutoCover)
                             return new List<UnitTest>();
+
+                        if(solution.SolutionBuild.BuildState == vsBuildState.vsBuildStateInProgress)
+                            return _testResults.GetTestResults().Values.ToList();
+
                         Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Building));
                         // Build the tests projects
                         var testAssemblies = new List<TestAssembly>();
