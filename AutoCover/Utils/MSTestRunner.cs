@@ -6,18 +6,21 @@ using System.IO;
 using System.Xml;
 using System.Xml.Serialization;
 using Microsoft.VisualStudio.TestTools.Common;
+using System.Reflection;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Security.Policy;
 
 namespace AutoCover
 {
     public static class MSTestRunner
     {
-        public static void Run(ProcessRunner processRunner, string projectOutputFile, string testResultsFile, string testSettingsPath, List<ITestElement> tests, TestResults testResults)
+        public static void Run(ProcessRunner processRunner, string projectOutputFile, string testResultsFile, string testSettingsPath, List<UnitTest> tests, TestResults testResults)
         {
             ExecuteTests(processRunner, projectOutputFile, testResultsFile, testSettingsPath, tests);
             ParseTests(testResultsFile, testResults);
         }
 
-        private static void ExecuteTests(ProcessRunner runner, string projectDll, string testResultsFile, string testSettingsPath, List<ITestElement> tests)
+        private static void ExecuteTests(ProcessRunner runner, string projectDll, string testResultsFile, string testSettingsPath, List<UnitTest> tests)
         {
             var testsToRun = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?><TestLists xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\"><TestList name=\"AutoCover\" id=\"acdf4fe0-64ae-4a24-9c52-62e478f1e624\" parentListId=\"8c43106b-9dc1-4907-a29f-aa66a61bf5b6\">");
 
@@ -25,15 +28,17 @@ namespace AutoCover
             {
                 using (var xmlTextWriter = XmlWriter.Create(stringWriter, new XmlWriterSettings { OmitXmlDeclaration = true, Indent = true }))
                 {
-                    XmlDocument xmlDoc = new XmlDocument();
+                    var xmlDoc = new XmlDocument();
                     var e = xmlDoc.CreateElement("TestLinks");
                     xmlDoc.AppendChild(e);
                     foreach (var testElement in tests)
                     {
-                        testElement.Storage = projectDll;
-                        var xmlTest = xmlDoc.CreateElement("TestLink");
-                        xmlDoc.DocumentElement.AppendChild(xmlTest);
-                        testElement.Link.Save(xmlTest, null);
+                        var testLink = xmlDoc.CreateElement("TestLink");
+                        testLink.SetAttribute("id", testElement.Id.ToString("D"));
+                        testLink.SetAttribute("name", testElement.HumanReadableId);
+                        testLink.SetAttribute("storage", projectDll);
+                        testLink.SetAttribute("type", "Microsoft.VisualStudio.TestTools.TestTypes.Unit.UnitTestElement, Microsoft.VisualStudio.QualityTools.Tips.UnitTest.ObjectModel, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a");
+                        e.AppendChild(testLink);
                     }
                     xmlDoc.WriteTo(xmlTextWriter);
                     xmlTextWriter.Flush();
@@ -85,6 +90,26 @@ namespace AutoCover
                     }
                 }
             }
+        }
+
+        public static IEnumerable<UnitTest> GetTests(string projectName, string projectOutputFile)
+        {
+            var tests = new List<UnitTest>();
+
+            var domain = AppDomain.CreateDomain("AutoCoverDomain", null, new AppDomainSetup
+            {
+                ApplicationBase = Path.GetDirectoryName(projectOutputFile)
+            });
+            var assemlby = domain.Load(File.ReadAllBytes(projectOutputFile));
+
+            foreach (var method in assemlby.GetTypes().SelectMany(x => x.GetMethods()).Where(x => x.IsDefined(typeof(TestMethodAttribute), true)))
+            {
+                var humanReadableId = string.Format("{0}.{1}.{2}", method.DeclaringType.Namespace, method.DeclaringType.Name, method.Name);
+                var id = humanReadableId.GuidFromString();
+                tests.Add(new UnitTest { Id = id, HumanReadableId = humanReadableId, Name = method.Name, ProjectName = projectName });
+            }
+            AppDomain.Unload(domain);
+            return tests;
         }
     }
 }

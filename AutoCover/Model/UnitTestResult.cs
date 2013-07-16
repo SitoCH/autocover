@@ -17,7 +17,13 @@ namespace AutoCover
 
     public class UnitTest
     {
+        public Guid Id { get; set; }
+
         public string Name { get; set; }
+        
+        public string ProjectName { get; set; }
+
+        public string HumanReadableId { get; set; }
 
         public UnitTestResult Result { get; set; }
 

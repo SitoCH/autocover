@@ -33,9 +33,9 @@ namespace AutoCover
             return Path.Combine(newPath, fileName);
         }
 
-        public static void ParseCoverageResults(string coverageFile, List<ITestElement> tests, CoverageResults coverageResult)
+        public static void ParseCoverageResults(string coverageFile, List<UnitTest> tests, CoverageResults coverageResult)
         {
-            var testsCache = tests.ToDictionary(k => k.HumanReadableId, e => e.Id.Id);
+            var testsCache = tests.ToDictionary(k => k.HumanReadableId, e => e.Id);
 
             using (var coverageStream = new FileStream(coverageFile, FileMode.Open))
             {

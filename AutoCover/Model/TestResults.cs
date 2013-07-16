@@ -25,9 +25,9 @@ namespace AutoCover
             _testResults.Clear();
         }
 
-        public void RemoveDeletedTests(List<ITestElement> suggestedTests)
+        public void RemoveDeletedTests(List<UnitTest> suggestedTests)
         {
-            var newTests = new HashSet<Guid>(suggestedTests.Select(x => x.Id.Id));
+            var newTests = new HashSet<Guid>(suggestedTests.Select(x => x.Id));
             foreach (var key in _testResults.Keys.ToList())
             {
                 if (!newTests.Contains(key))

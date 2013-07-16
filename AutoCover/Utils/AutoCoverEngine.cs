@@ -16,7 +16,7 @@ namespace AutoCover
         private static readonly TestResults _testResults = new TestResults();
         public static DateTime LastCheck { get; private set; }
 
-        public static void CheckSolution(Solution solution, Document document, ITmi tmi, string testSettingsPath)
+        public static void CheckSolution(Solution solution, Document document, string testSettingsPath)
         {
             Task.Factory.StartNew(() =>
                 {
@@ -25,34 +25,33 @@ namespace AutoCover
                         var settings = SettingsService.Settings;
                         if (!settings.EnableAutoCover)
                             return new List<UnitTest>();
-
-                        var currentTests = tmi.GetTests().ToList();
-                        if (currentTests.Count == 0)
-                            return _testResults.GetTestResults().Values.ToList();
                         Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Building));
                         // Build the tests projects
                         var testAssemblies = new List<TestAssembly>();
+                        var suggestedTests = new List<UnitTest>();
                         foreach (Project project in solution.Projects)
                         {
                             var ids = project.GetProjectTypeGuids();
                             if (ids.Contains("{3AC096D0-A1C2-E12C-1390-A8335801FDAB}"))
                             {
                                 Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Building, project.Name));
-
-                                solution.SolutionBuild.BuildProject(solution.SolutionBuild.ActiveConfiguration.Name, project.UniqueName, true);
-                                if (solution.SolutionBuild.LastBuildInfo == 0)
+                                var activeConfig = solution.Properties.Item("ActiveConfig").Value.ToString(); ;
+                                var runner = new ProcessRunner(Environment.ExpandEnvironmentVariables(Utils.GetDevEnvPath()), Path.GetDirectoryName(solution.FullName));
+                                var buildOutput = runner.Run(string.Format("\"{0}\" /build \"{1}\"  /project \"{2}\"", solution.FullName, activeConfig, project.Name));
+                                if (buildOutput.Item2 == 0)
                                 {
                                     var projectOutputFile = CodeCoverageService.Instrument(solution, project);
                                     var ta = new TestAssembly { Name = project.Name, DllPath = projectOutputFile };
+                                    suggestedTests.AddRange(MSTestRunner.GetTests(project.Name, projectOutputFile));
                                     testAssemblies.Add(ta);
                                 }
                             }
                         }
                         // Run all the impacted tests
-                        var tests = FilterTests(document, _testResults, _coverageResults, tmi.GetTests().ToList());
+                        var tests = FilterTests(document, _testResults, _coverageResults, suggestedTests);
                         if (testAssemblies.Count == 0 || tests.Count == 0)
                             return _testResults.GetTestResults().Values.ToList();
-                        testAssemblies.ForEach(ta => ta.Tests = tests.Where(x => x.ProjectData.ProjectName == ta.Name).ToList());
+                        testAssemblies.ForEach(ta => ta.Tests = tests.Where(x => x.ProjectName == ta.Name).ToList());
                         // Run the tests and parse the results
                         var msTestPathExe = Utils.GetMSTestPath();
                         var processRunner = new ProcessRunner(msTestPathExe, Path.GetDirectoryName(msTestPathExe));
@@ -77,7 +76,7 @@ namespace AutoCover
                 });
         }
 
-        private static List<ITestElement> FilterTests(Document document, TestResults testsResults, CoverageResults coverageResults, List<ITestElement> suggestedTests)
+        private static List<UnitTest> FilterTests(Document document, TestResults testsResults, CoverageResults coverageResults, List<UnitTest> suggestedTests)
         {
             if (testsResults.GetTestResults().Count == 0)
                 return suggestedTests;
@@ -87,7 +86,7 @@ namespace AutoCover
             var impactedTests = coverageResults.GetImpactedTests(document.FullName);
             var oldTests = new HashSet<Guid>(testsResults.GetTestResults().Keys);
 
-            return suggestedTests.Where(x => impactedTests.Contains(x.Id.Id) || !oldTests.Contains(x.Id.Id)).ToList();
+            return suggestedTests.Where(x => impactedTests.Contains(x.Id) || !oldTests.Contains(x.Id)).ToList();
         }
 
         public static CodeCoverageResult GetLineResult(string document, int line)

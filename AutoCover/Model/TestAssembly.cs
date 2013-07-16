@@ -10,6 +10,6 @@ namespace AutoCover
     {
         public string Name { get; set; }
         public string DllPath { get; set; }
-        public List<ITestElement> Tests { get; set; }
+        public List<UnitTest> Tests { get; set; }
     }
 }
