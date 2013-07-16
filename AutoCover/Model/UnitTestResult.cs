@@ -15,6 +15,7 @@ namespace AutoCover
         Passed, Failed
     }
 
+    [Serializable]
     public class UnitTest
     {
         public Guid Id { get; set; }

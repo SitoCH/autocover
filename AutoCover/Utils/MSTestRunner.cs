@@ -94,22 +94,34 @@ namespace AutoCover
 
         public static IEnumerable<UnitTest> GetTests(string projectName, string projectOutputFile)
         {
-            var tests = new List<UnitTest>();
-
-            var domain = AppDomain.CreateDomain("AutoCoverDomain", null, new AppDomainSetup
-            {
-                ApplicationBase = Path.GetDirectoryName(projectOutputFile)
-            });
-            var assemlby = domain.Load(File.ReadAllBytes(projectOutputFile));
-
-            foreach (var method in assemlby.GetTypes().SelectMany(x => x.GetMethods()).Where(x => x.IsDefined(typeof(TestMethodAttribute), true)))
-            {
-                var humanReadableId = string.Format("{0}.{1}.{2}", method.DeclaringType.Namespace, method.DeclaringType.Name, method.Name);
-                var id = humanReadableId.GuidFromString();
-                tests.Add(new UnitTest { Id = id, HumanReadableId = humanReadableId, Name = method.Name, ProjectName = projectName });
-            }
-            AppDomain.Unload(domain);
+            var appDomain = AppDomain.CreateDomain("AppCoverDomain", null, new AppDomainSetup { ApplicationBase = Environment.CurrentDirectory });
+            var boundary = (MyBoundaryObject)appDomain.CreateInstanceAndUnwrap(typeof(MyBoundaryObject).Assembly.FullName, typeof(MyBoundaryObject).FullName);
+            boundary.ParseTests(new AppDomainArgs { ProjectOutputFile = projectOutputFile, ProjectName = projectName });
+            var tests = boundary.Tests;
+            AppDomain.Unload(appDomain);
             return tests;
         }
+
+    }
+
+    class MyBoundaryObject : MarshalByRefObject
+    {
+        public IEnumerable<UnitTest> Tests { get; private set; }
+
+        public void ParseTests(AppDomainArgs ada)
+        {
+            var assemlby = AppDomain.CurrentDomain.Load(File.ReadAllBytes(ada.ProjectOutputFile));
+            Tests = assemlby.GetTypes()
+                 .SelectMany(x => x.GetMethods())
+                 .Where(x => x.IsDefined(typeof(TestMethodAttribute), true))
+                 .Select(method => new { method, humanReadableId = string.Format("{0}.{1}.{2}", method.DeclaringType.Namespace, method.DeclaringType.Name, method.Name) })
+                 .Select(@t => new { @t, id = @t.humanReadableId.GuidFromString() })
+                 .Select(@t => new UnitTest { Id = @t.id, HumanReadableId = @t.@t.humanReadableId, Name = @t.@t.method.Name, ProjectName = ada.ProjectName }).ToList();
+        }
+    }
+    public class AppDomainArgs : MarshalByRefObject
+    {
+        public string ProjectOutputFile { get; set; }
+        public string ProjectName { get; set; }
     }
 }
