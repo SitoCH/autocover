@@ -105,10 +105,13 @@ namespace AutoCover
 
     class MyBoundaryObject : MarshalByRefObject
     {
+        private AppDomainArgs _ada;
         public IEnumerable<UnitTest> Tests { get; private set; }
 
         public void ParseTests(AppDomainArgs ada)
         {
+            _ada = ada;
+            AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
             var assemlby = AppDomain.CurrentDomain.Load(File.ReadAllBytes(ada.ProjectOutputFile));
             Tests = assemlby.GetTypes()
                  .SelectMany(x => x.GetMethods())
@@ -116,6 +119,24 @@ namespace AutoCover
                  .Select(method => new { method, humanReadableId = string.Format("{0}.{1}.{2}", method.DeclaringType.Namespace, method.DeclaringType.Name, method.Name) })
                  .Select(@t => new { @t, id = @t.humanReadableId.GuidFromString() })
                  .Select(@t => new UnitTest { Id = @t.id, HumanReadableId = @t.@t.humanReadableId, Name = @t.@t.method.Name, ProjectName = ada.ProjectName }).ToList();
+            AppDomain.CurrentDomain.AssemblyResolve -= CurrentDomain_AssemblyResolve;
+        }
+
+        private Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs args)
+        {
+            var assemblyName = args.Name;
+            var pos = assemblyName.IndexOf(',');
+            if (pos > -1)
+                assemblyName = assemblyName.Substring(0, pos);
+
+            var basePath = Path.GetDirectoryName(_ada.ProjectOutputFile);
+            var dllPath = Path.Combine(basePath, assemblyName + ".dll");
+            if (File.Exists(dllPath))
+                return Assembly.LoadFile(dllPath);
+            var exePath = Path.Combine(basePath, assemblyName + ".exe");
+            if (File.Exists(exePath))
+                return Assembly.LoadFile(exePath);
+            return null;
         }
     }
     public class AppDomainArgs : MarshalByRefObject

@@ -17,7 +17,7 @@ namespace AutoCover
 
     public enum AutoCoverEngineStatus
     {
-        Idle, Building, Testing
+        Idle, Building, Instrumenting, Testing
     }
 
     public class AutoCoverEngineStatusMessage

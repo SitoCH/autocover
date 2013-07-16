@@ -22,11 +22,8 @@ namespace AutoCover
                 {
                     lock (_lock)
                     {
-                        if (! SettingsService.Settings.EnableAutoCover)
+                        if (!SettingsService.Settings.EnableAutoCover)
                             return new List<UnitTest>();
-
-                        if(solution.SolutionBuild.BuildState == vsBuildState.vsBuildStateInProgress)
-                            return _testResults.GetTestResults().Values.ToList();
 
                         Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Building));
                         // Build the tests projects
@@ -43,6 +40,7 @@ namespace AutoCover
                                 var buildOutput = runner.Run(string.Format("\"{0}\" /build \"{1}\"  /project \"{2}\"", solution.FullName, activeConfig, project.Name));
                                 if (buildOutput.Item2 == 0)
                                 {
+                                    Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Instrumenting, project.Name));
                                     var projectOutputFile = CodeCoverageService.Instrument(solution, project);
                                     var ta = new TestAssembly { Name = project.Name, DllPath = projectOutputFile };
                                     suggestedTests.AddRange(MSTestRunner.GetTests(project.Name, projectOutputFile));

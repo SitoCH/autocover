@@ -145,6 +145,10 @@ namespace SimoneGrignola.AutoCover
         {
             if (_DTE.Solution == null)
                 return;
+            if (_DTE.Solution.SolutionBuild.BuildState == vsBuildState.vsBuildStateInProgress)
+                return;
+            if (_DTE.Debugger.DebuggedProcesses.Count > 0)
+                return;
 
             var tmi = _testManagement.TmiInstance;
             if (tmi != null)
