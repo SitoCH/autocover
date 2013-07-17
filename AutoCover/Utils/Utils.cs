@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -61,6 +62,20 @@ namespace AutoCover
                 Copy(directory, Path.Combine(targetDir, Path.GetFileName(directory)));
         }
 
+        public static void Clear<T>(this BlockingCollection<T> blockingCollection)
+        {
+            if (blockingCollection == null)
+            {
+                throw new ArgumentNullException("blockingCollection");
+            }
+
+            while (blockingCollection.Count > 0)
+            {
+                T item;
+                blockingCollection.TryTake(out item);
+            }
+        }
+
         public static ITextDocument GetTextDocument(this ITextBuffer TextBuffer)
         {
             ITextDocument textDoc;
@@ -119,7 +134,7 @@ namespace AutoCover
 
     internal static class UnitTestIdHash
     {
-        private static HashAlgorithm s_provider = new SHA1CryptoServiceProvider();
+        private static readonly HashAlgorithm s_provider = new SHA1CryptoServiceProvider();
 
         internal static HashAlgorithm Provider
         {
@@ -133,13 +148,13 @@ namespace AutoCover
         internal static Guid GuidFromString(this string data)
         {
             Debug.Assert(!String.IsNullOrEmpty(data));
-            byte[] hash = Provider.ComputeHash(System.Text.Encoding.Unicode.GetBytes(data)); 
+            var hash = Provider.ComputeHash(Encoding.Unicode.GetBytes(data));
 
             // Guid is always 16 bytes
-            Debug.Assert(Guid.Empty.ToByteArray().Length == 16, "Expected Guid to be 16 bytes"); 
+            Debug.Assert(Guid.Empty.ToByteArray().Length == 16, "Expected Guid to be 16 bytes");
 
-            byte[] toGuid = new byte[16];
-            Array.Copy(hash, toGuid, 16); 
+            var toGuid = new byte[16];
+            Array.Copy(hash, toGuid, 16);
 
             return new Guid(toGuid);
         }

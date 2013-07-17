@@ -92,7 +92,7 @@ namespace SimoneGrignola.AutoCover
         {
             Trace.WriteLine(string.Format(CultureInfo.CurrentCulture, "Entering Initialize() of: {0}", this.ToString()));
             base.Initialize();
-
+            AutoCoverEngine.InitEngine();
             // Add our command handlers for menu (commands must exist in the .vsct file)
             var mcs = GetService(typeof(IMenuCommandService)) as OleMenuCommandService;
             if (null != mcs)
@@ -156,7 +156,7 @@ namespace SimoneGrignola.AutoCover
                 var config = tmi.GetTestRunConfiguration(tmi.ActiveTestRunConfigurationId);
                 if (config != null)
                 {
-                    AutoCoverEngine.CheckSolution(_DTE.Solution, document, config.Storage);
+                    AutoCoverEngine.AddDocument(_DTE.Solution, document, config.Storage);
                 }
             }
         }

@@ -33,6 +33,7 @@ using System.Threading;
 using System.Linq;
 using System.Xml.Linq;
 using System.Xml;
+using System.Text;
 
 namespace Coverage
 {
@@ -81,21 +82,37 @@ namespace Coverage
         /// </summary>
         public static void FlushCounter()
         {
-            if (Hits.Count == 0)
-                return;
-
-            KeyValuePair<string, Dictionary<int, HashSet<string>>>[] hitCounts;
-            lock (Hits)
+            try
             {
                 if (Hits.Count == 0)
                     return;
 
-                hitCounts = Hits.ToArray();
-                Hits.Clear();
+                KeyValuePair<string, Dictionary<int, HashSet<string>>>[] hitCounts;
+                lock (Hits)
+                {
+                    if (Hits.Count == 0)
+                        return;
+
+                    hitCounts = Hits.ToArray();
+                    Hits.Clear();
+                }
+
+                _measureTime = DateTime.Now;
+                UpdateFileReport(hitCounts);
+            }
+            catch (Exception ex)
+            {
+                var sb = new StringBuilder();
+                var ie = ex;
+                while (ie != null)
+                {
+                    sb.AppendLine(ex.Message);
+                    sb.AppendLine(ex.StackTrace);
+                    ie = ie.InnerException;
+                }
+                File.WriteAllText(CoverageFilePathResults + ".log", sb.ToString());
             }
 
-            _measureTime = DateTime.Now;
-            UpdateFileReport(hitCounts);
         }
 
         /// <summary>
@@ -104,9 +121,6 @@ namespace Coverage
         static void UpdateFileReport(IEnumerable<KeyValuePair<string, Dictionary<int, HashSet<string>>>> hitCounts)
         {
             Mutex.WaitOne(10000);
-
-            var flushStart = DateTime.Now;
-            DateTime flushEnd;
             try
             {
                 using (var coverageFile = new FileStream(CoverageFilePath, FileMode.Open))
@@ -119,7 +133,7 @@ namespace Coverage
                         //Edit xml report to store new hits
                         var xDoc = XDocument.Load(new XmlTextReader(coverageFile));
 
-                        var startTimeAttr = xDoc.Root.Attribute("startTime");
+                        /*var startTimeAttr = xDoc.Root.Attribute("startTime");
                         var measureTimeAttr = xDoc.Root.Attribute("measureTime");
                         var oldStartTime = DateTime.ParseExact(startTimeAttr.Value, "o", null);
                         var oldMeasureTime = DateTime.ParseExact(measureTimeAttr.Value, "o", null);
@@ -128,7 +142,7 @@ namespace Coverage
                         _measureTime = _measureTime > oldMeasureTime ? _measureTime : oldMeasureTime; //Max
 
                         startTimeAttr.SetValue(_startTime.ToString("o"));
-                        measureTimeAttr.SetValue(_measureTime.ToString("o"));
+                        measureTimeAttr.SetValue(_measureTime.ToString("o"));*/
 
                         foreach (var pair in hitCounts)
                         {
@@ -142,15 +156,14 @@ namespace Coverage
                                 counter++;
                                 if (!moduleHits.ContainsKey(counter))
                                     continue;
-                                var line = int.Parse(pt.Attribute("line").Value);
-                                var column = int.Parse(pt.Attribute("column").Value);
-                                var endLine = int.Parse(pt.Attribute("endline").Value);
-                                var endColumn = int.Parse(pt.Attribute("endcolumn").Value);
-                                var document = pt.Attribute("document").Value;
-
-
                                 if (moduleHits[counter].Count > 0)
                                 {
+                                    var line = int.Parse(pt.Attribute("line").Value);
+                                    var column = int.Parse(pt.Attribute("column").Value);
+                                    var endLine = int.Parse(pt.Attribute("endline").Value);
+                                    var endColumn = int.Parse(pt.Attribute("endcolumn").Value);
+                                    var document = pt.Attribute("document").Value;
+
                                     writer.WriteStartElement("seqpnt");
                                     writer.WriteAttributeString("line", line.ToString());
                                     writer.WriteAttributeString("column", column.ToString());
@@ -174,15 +187,8 @@ namespace Coverage
             }
             finally
             {
-                flushEnd = DateTime.Now;
                 Mutex.ReleaseMutex();
             }
-
-            try
-            {
-                Console.WriteLine("Coverage statistics flushing took {0:N} seconds", new TimeSpan(flushEnd.Ticks - flushStart.Ticks).TotalSeconds);
-            }
-            catch (Exception) { }
         }
 
         /// <summary>
