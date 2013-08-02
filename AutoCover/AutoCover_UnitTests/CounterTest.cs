@@ -26,6 +26,8 @@ namespace AutoCover_UnitTests
                 File.Delete(Counter.CoverageFilePath);
             if (File.Exists(Counter.CoverageFilePathResults))
                 File.Delete(Counter.CoverageFilePathResults);
+            if (File.Exists(Counter.CoverageFilePathResults + ".log"))
+                File.Delete(Counter.CoverageFilePathResults + ".log");
         }
 
         private void CreateBaseCoverageFile()
@@ -56,12 +58,13 @@ namespace AutoCover_UnitTests
         }
 
         [TestMethod]
-        [ExpectedException(typeof(FileNotFoundException))]
         public void TestSaveWith1HitAndNoCoverageFile()
         {
             Counter.SetCurrentTest("MyTest");
             Counter.Hit("module1", 1);
             Counter.FlushCounter();
+            Assert.IsFalse(File.Exists(Counter.CoverageFilePath));
+            Assert.IsTrue(File.Exists(Counter.CoverageFilePathResults + ".log"));
         }
 
         [TestMethod]
