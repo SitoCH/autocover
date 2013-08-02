@@ -74,7 +74,10 @@ namespace AutoCover
 
         private static void ProcessDocuments(Solution solution, List<AnalysisItem> items)
         {
-            if (!SettingsService.Settings.EnableAutoCover || items.Count == 0)
+            if (items.Count == 0)
+                return;
+
+            if (!SettingsService.Settings.EnableAutoCover)
             {
                 Messenger.Default.Send(new TestsResultsMessage(new List<ACUnitTest>()));
                 Messenger.Default.Send(new RefreshTaggerMessage());

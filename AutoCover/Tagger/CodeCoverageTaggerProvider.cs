@@ -188,12 +188,24 @@ namespace AutoCover
             {
                 var status = AutoCoverEngine.GetLineResult(_filePath, line.LineNumber + 1);
                 if (status == CodeCoverageResult.Passed)
-                    passedSpans.Add(line.Extent);
+                    passedSpans.Add(GetExactStart(snapshot, line));
                 else if (status == CodeCoverageResult.Failed)
-                    failedSpans.Add(line.Extent);
+                    failedSpans.Add(GetExactStart(snapshot, line));
             }
             _currentPassedSpans = new NormalizedSnapshotSpanCollection(passedSpans);
             _currentFailedSpans = new NormalizedSnapshotSpanCollection(failedSpans);
+        }
+
+        private static SnapshotSpan GetExactStart(ITextSnapshot snapshot, ITextSnapshotLine line)
+        {
+            int pos = 0;
+            foreach (var letter in line.GetText())
+            {
+                if (letter != ' ' && letter != '\t')
+                    break;
+                pos++;
+            }
+            return new SnapshotSpan(new SnapshotPoint(snapshot, line.Extent.Start.Position + pos), line.Extent.Length - pos);
         }
     }
 }
