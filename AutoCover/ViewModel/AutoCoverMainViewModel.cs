@@ -28,7 +28,7 @@ namespace AutoCover
 {
     public class AutoCoverMainViewModel : ViewModelBase
     {
-        private List<UnitTest> _tests;
+        private List<ACUnitTest> _tests;
         private AutoCoverEngineStatus _engineStatus;
         private string _engineMessage;
 
@@ -45,7 +45,7 @@ namespace AutoCover
                 });
             Messenger.Default.Register<SolutionStatusChangedMessage>(this, m =>
                 {
-                    Tests = new List<UnitTest>();
+                    Tests = new List<ACUnitTest>();
                     RaisePropertyChanged("DisableRowHighlighting");
                     RaisePropertyChanged("IsAutoCoverEnabled");
                 });
@@ -75,7 +75,7 @@ namespace AutoCover
 
 
 
-        public List<UnitTest> Tests
+        public List<ACUnitTest> Tests
         {
             get { return _tests; }
             set

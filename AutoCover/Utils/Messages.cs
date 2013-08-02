@@ -25,9 +25,9 @@ namespace AutoCover
 {
     public class TestsResultsMessage
     {
-        public List<UnitTest> Tests { get; private set; }
+        public List<ACUnitTest> Tests { get; private set; }
 
-        public TestsResultsMessage(List<UnitTest> tests)
+        public TestsResultsMessage(List<ACUnitTest> tests)
         {
             Tests = tests;
         }

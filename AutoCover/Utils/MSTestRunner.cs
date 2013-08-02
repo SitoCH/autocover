@@ -32,13 +32,13 @@ namespace AutoCover
 {
     public static class MSTestRunner
     {
-        public static void Run(ProcessRunner processRunner, string projectOutputFile, string testResultsFile, string testSettingsPath, List<UnitTest> tests, TestResults testResults)
+        public static void Run(ProcessRunner processRunner, string projectOutputFile, string testResultsFile, string testSettingsPath, List<ACUnitTest> tests, TestResults testResults)
         {
             ExecuteTests(processRunner, projectOutputFile, testResultsFile, testSettingsPath, tests);
             ParseTests(testResultsFile, testResults);
         }
 
-        private static void ExecuteTests(ProcessRunner runner, string projectDll, string testResultsFile, string testSettingsPath, List<UnitTest> tests)
+        private static void ExecuteTests(ProcessRunner runner, string projectDll, string testResultsFile, string testSettingsPath, List<ACUnitTest> tests)
         {
             var testsToRun = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?><TestLists xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\"><TestList name=\"AutoCover\" id=\"acdf4fe0-64ae-4a24-9c52-62e478f1e624\" parentListId=\"8c43106b-9dc1-4907-a29f-aa66a61bf5b6\">");
 
@@ -88,7 +88,7 @@ namespace AutoCover
                         if (unitTestResultType == null)
                             continue;
 
-                        var unitTest = new UnitTest { Name = unitTestResultType.testName };
+                        var unitTest = new ACUnitTest { Name = unitTestResultType.testName };
                         testResults.ProcessUnitTestResult(new Guid(unitTestResultType.testId), unitTest);
                         var outcome = unitTestResultType.outcome;
                         if (outcome != "Failed")
@@ -109,22 +109,21 @@ namespace AutoCover
             }
         }
 
-        public static IEnumerable<UnitTest> GetTests(string projectName, string projectOutputFile)
+        public static IEnumerable<ACUnitTest> GetTests(string projectName, string projectOutputFile)
         {
             var appDomain = AppDomain.CreateDomain("AppCoverDomain", null, new AppDomainSetup { ApplicationBase = Environment.CurrentDirectory });
-            var boundary = (MyBoundaryObject)appDomain.CreateInstanceAndUnwrap(typeof(MyBoundaryObject).Assembly.FullName, typeof(MyBoundaryObject).FullName);
+            var boundary = (AppCoverBoundaryObject)appDomain.CreateInstanceAndUnwrap(typeof(AppCoverBoundaryObject).Assembly.FullName, typeof(AppCoverBoundaryObject).FullName);
             boundary.ParseTests(new AppDomainArgs { ProjectOutputFile = projectOutputFile, ProjectName = projectName });
             var tests = boundary.Tests;
             AppDomain.Unload(appDomain);
             return tests;
         }
-
     }
 
-    class MyBoundaryObject : MarshalByRefObject
+    public class AppCoverBoundaryObject : MarshalByRefObject
     {
         private AppDomainArgs _ada;
-        public IEnumerable<UnitTest> Tests { get; private set; }
+        public IEnumerable<ACUnitTest> Tests { get; private set; }
 
         public void ParseTests(AppDomainArgs ada)
         {
@@ -136,7 +135,7 @@ namespace AutoCover
                  .Where(x => x.IsDefined(typeof(TestMethodAttribute), true))
                  .Select(method => new { method, humanReadableId = string.Format("{0}.{1}.{2}", method.DeclaringType.Namespace, method.DeclaringType.Name, method.Name) })
                  .Select(@t => new { @t, id = @t.humanReadableId.GuidFromString() })
-                 .Select(@t => new UnitTest { Id = @t.id, HumanReadableId = @t.@t.humanReadableId, Name = @t.@t.method.Name, ProjectName = ada.ProjectName }).ToList();
+                 .Select(@t => new ACUnitTest { Id = @t.id, HumanReadableId = @t.@t.humanReadableId, Name = @t.@t.method.Name, ProjectName = ada.ProjectName }).ToList();
             AppDomain.CurrentDomain.AssemblyResolve -= CurrentDomain_AssemblyResolve;
         }
 

@@ -34,7 +34,7 @@ namespace AutoCover
     }
 
     [Serializable]
-    public class UnitTest
+    public class ACUnitTest : IEquatable<ACUnitTest>
     {
         public Guid Id { get; set; }
 
@@ -47,5 +47,10 @@ namespace AutoCover
         public UnitTestResult Result { get; set; }
 
         public string Message { get; set; }
+
+        public bool Equals(ACUnitTest other)
+        {
+            return Id == other.Id;
+        }
     }
 }

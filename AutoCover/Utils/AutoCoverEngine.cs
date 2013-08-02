@@ -24,13 +24,13 @@ using System.Threading.Tasks;
 using System.IO;
 using EnvDTE;
 using GalaSoft.MvvmLight.Messaging;
+using Microsoft.VisualStudio.Shell;
 
 namespace AutoCover
 {
     public static class AutoCoverEngine
     {
-        private static readonly BlockingCollection<AnalysisArgs> _queue = new BlockingCollection<AnalysisArgs>();
-        private static readonly object _resetLock = new object();
+        private static readonly ConcurrentBag<AnalysisItem> _pendingFiles = new ConcurrentBag<AnalysisItem>();
 
         private static readonly CoverageResults _coverageResults = new CoverageResults();
         private static readonly TestResults _testResults = new TestResults();
@@ -39,42 +39,54 @@ namespace AutoCover
         public static void AddDocument(Solution solution, Document document, string testSettingsPath)
         {
             if (SettingsService.Settings.EnableAutoCover)
-                _queue.Add(new AnalysisArgs { Solution = solution, Document = document, TestSettingsPath = testSettingsPath });
+                _pendingFiles.Add(new AnalysisItem { Solution = solution, Document = document, TestSettingsPath = testSettingsPath });
         }
 
         public static void InitEngine()
         {
-            Task.Factory.StartNew(Spool, TaskCreationOptions.LongRunning);
+            System.Threading.Tasks.Task.Factory.StartNew(Loop, TaskCreationOptions.LongRunning);
         }
 
-        private static void Spool()
+        private static void Loop()
         {
-            foreach (var args in _queue.GetConsumingEnumerable())
+            while (true)
             {
-                lock (_resetLock)
-                {
-                    ProcessDocument(args);
-                }
+                var dte = (DTE)Package.GetGlobalService(typeof(DTE));
+                var items = TakeAllPendingItems().Where(x => x.Solution.FullName == dte.Solution.FullName).Distinct().ToList();
+                ProcessDocuments(dte.Solution, items);
+                System.Threading.Thread.Sleep(2500);
             }
         }
 
-        private static void ProcessDocument(AnalysisArgs args)
+        private static IEnumerable<AnalysisItem> TakeAllPendingItems()
         {
-            if (!SettingsService.Settings.EnableAutoCover)
+            var files = new List<AnalysisItem>();
+            AnalysisItem item;
+            while (!_pendingFiles.IsEmpty)
             {
-                Messenger.Default.Send(new TestsResultsMessage(new List<UnitTest>()));
+                if (_pendingFiles.TryTake(out item))
+                {
+                    files.Add(item);
+                }
+            }
+            return files;
+        }
+
+        private static void ProcessDocuments(Solution solution, List<AnalysisItem> items)
+        {
+            if (!SettingsService.Settings.EnableAutoCover || items.Count == 0)
+            {
+                Messenger.Default.Send(new TestsResultsMessage(new List<ACUnitTest>()));
                 Messenger.Default.Send(new RefreshTaggerMessage());
                 return;
             }
 
-            var document = args.Document;
-            var solution = args.Solution;
             try
             {
                 Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Building));
                 // Build the tests projects
                 var testAssemblies = new List<TestAssembly>();
-                var suggestedTests = new List<UnitTest>();
+                var suggestedTests = new List<ACUnitTest>();
                 foreach (Project project in solution.Projects)
                 {
                     var ids = project.GetProjectTypeGuids();
@@ -97,7 +109,12 @@ namespace AutoCover
                 if (testAssemblies.Count == 0)
                     return;
                 // Get all the impacted tests
-                var tests = FilterTests(document, _testResults, _coverageResults, suggestedTests);
+                var tests = new List<ACUnitTest>();
+                foreach (var item in items)
+                {
+                    tests.AddRange(FilterTests(item.Document.FullName, _testResults, _coverageResults, suggestedTests));
+                }
+                tests = tests.Distinct().ToList();
                 if (tests.Count == 0)
                     return;
                 // Reassign the tests to the right assembly
@@ -110,7 +127,7 @@ namespace AutoCover
                     Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Testing, string.Format("{0} ({1} tests)", testAssembly.Name, testAssembly.Tests.Count)));
                     var projectOutputFile = testAssembly.DllPath;
                     var testResultsFile = Path.Combine(Path.GetDirectoryName(projectOutputFile), "test.trx");
-                    MSTestRunner.Run(processRunner, projectOutputFile, testResultsFile, args.TestSettingsPath, testAssembly.Tests, _testResults);
+                    MSTestRunner.Run(processRunner, projectOutputFile, testResultsFile, items.First().TestSettingsPath, testAssembly.Tests, _testResults);
                     Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Testing, string.Format("{0} (parsing coverage results)", testAssembly.Name)));
                     var coverageFile = Path.Combine(Path.GetDirectoryName(projectOutputFile), "coverage.results.xml");
                     CodeCoverageService.ParseCoverageResults(coverageFile, tests, _coverageResults);
@@ -125,14 +142,14 @@ namespace AutoCover
             }
         }
 
-        private static List<UnitTest> FilterTests(Document document, TestResults testsResults, CoverageResults coverageResults, List<UnitTest> suggestedTests)
+        private static List<ACUnitTest> FilterTests(string documentPath, TestResults testsResults, CoverageResults coverageResults, List<ACUnitTest> suggestedTests)
         {
             if (testsResults.GetTestResults().Count == 0)
                 return suggestedTests;
 
             testsResults.RemoveDeletedTests(suggestedTests);
 
-            var impactedTests = coverageResults.GetImpactedTests(document.FullName);
+            var impactedTests = coverageResults.GetImpactedTests(documentPath);
             var oldTests = new HashSet<Guid>(testsResults.GetTestResults().Keys);
 
             return suggestedTests.Where(x => impactedTests.Contains(x.Id) || !oldTests.Contains(x.Id)).ToList();
@@ -150,19 +167,21 @@ namespace AutoCover
 
         public static void Reset()
         {
-            lock (_resetLock)
-            {
-                _queue.Clear();
-                _coverageResults.Reset();
-                _testResults.Reset();
-            }
+            TakeAllPendingItems();
+            _coverageResults.Reset();
+            _testResults.Reset();
         }
     }
 
-    internal class AnalysisArgs
+    internal class AnalysisItem : IEquatable<AnalysisItem>
     {
         public Solution Solution { get; set; }
         public Document Document { get; set; }
         public string TestSettingsPath { get; set; }
+
+        public bool Equals(AnalysisItem other)
+        {
+            return Document.FullName == other.Document.FullName;
+        }
     }
 }

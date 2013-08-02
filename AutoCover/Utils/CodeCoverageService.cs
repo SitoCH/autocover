@@ -51,7 +51,7 @@ namespace AutoCover
             return Path.Combine(newPath, fileName);
         }
 
-        public static void ParseCoverageResults(string coverageFile, List<UnitTest> tests, CoverageResults coverageResult)
+        public static void ParseCoverageResults(string coverageFile, List<ACUnitTest> tests, CoverageResults coverageResult)
         {
             var testsCache = tests.ToDictionary(k => k.HumanReadableId, e => e.Id);
 
