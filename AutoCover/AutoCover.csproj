@@ -180,6 +180,7 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <None Include="AutoCover.licenseheader" />
     <None Include="source.extension.vsixmanifest">
       <SubType>Designer</SubType>
     </None>
