@@ -144,6 +144,7 @@
     <Compile Include="Model\TestResults.cs" />
     <Compile Include="Tagger\CodeCoverageTaggerProvider.cs" />
     <Compile Include="Utils\CodeCoverageService.cs" />
+    <Compile Include="Utils\FileUtils.cs" />
     <Compile Include="Utils\Messages.cs" />
     <Compile Include="Utils\MSTestRunner.cs" />
     <Compile Include="Utils\ProcessRunner.cs" />

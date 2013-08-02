@@ -69,17 +69,6 @@ namespace AutoCover
             return SearchForExe("devenv.exe");
         }
 
-        public static void Copy(string sourceDir, string targetDir)
-        {
-            Directory.CreateDirectory(targetDir);
-
-            foreach (string file in Directory.GetFiles(sourceDir))
-                File.Copy(file, Path.Combine(targetDir, Path.GetFileName(file)));
-
-            foreach (string directory in Directory.GetDirectories(sourceDir))
-                Copy(directory, Path.Combine(targetDir, Path.GetFileName(directory)));
-        }
-
         public static void Clear<T>(this BlockingCollection<T> blockingCollection)
         {
             if (blockingCollection == null)

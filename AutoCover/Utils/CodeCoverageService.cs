@@ -39,16 +39,58 @@ namespace AutoCover
             var outputPath = config.Properties.Item("OutputPath").Value.ToString();
             var dllsPath = Path.Combine(basePath, outputPath);
             var newPath = Path.Combine(solutionPath, "_AutoCover", project.Name);
-            try
-            {
-                if (Directory.Exists(newPath))
-                    Directory.Delete(newPath, true);
-            }
-            catch { }
-            Utils.Copy(dllsPath, newPath);
-            Runner.Run(newPath, GetAssemblies(newPath));
+
+            SmartDelete(newPath);
+            var filesAlreadyInstrumented = new HashSet<string>();
+            SmartCopy(dllsPath, newPath, filesAlreadyInstrumented);
+            Runner.Run(newPath, GetAssemblies(newPath).Where(x => !filesAlreadyInstrumented.Contains(x)).ToList());
             var fileName = project.Properties.Item("OutputFileName").Value.ToString();
             return Path.Combine(newPath, fileName);
+        }
+
+        private static void SmartDelete(string path)
+        {
+            foreach (string file in Directory.GetFiles(path))
+            {
+                if (CanDeleteFile(file))
+                    File.Delete(file);
+            }
+
+            foreach (string directory in Directory.GetDirectories(path))
+                SmartDelete(directory);
+
+            if (!Directory.GetDirectories(path).Any() && !Directory.GetFiles(path).Any())
+                Directory.Delete(path);
+        }
+
+        private static bool CanDeleteFile(string file)
+        {
+            if (file.EndsWith("backup_dll"))
+                return false;
+            if (file.EndsWith("dll") && File.Exists(Path.ChangeExtension(file, "backup_dll")))
+                return false;
+            return true;
+        }
+
+        public static void SmartCopy(string sourceDir, string targetDir, ICollection<string> filesAlreadyInstrumented)
+        {
+            Directory.CreateDirectory(targetDir);
+            foreach (string file in Directory.GetFiles(sourceDir))
+            {
+                var newPath = Path.Combine(targetDir, Path.GetFileName(file));
+                var backupFilePath = Path.ChangeExtension(newPath, "backup_dll");
+                if (File.Exists(backupFilePath) && File.Exists(newPath))
+                {
+                    if (FileUtils.FileEquals(file, backupFilePath))
+                    {
+                        filesAlreadyInstrumented.Add(newPath);
+                        continue;
+                    }
+                }
+                File.Copy(file, newPath, true);
+            }
+            foreach (string directory in Directory.GetDirectories(sourceDir))
+                SmartCopy(directory, Path.Combine(targetDir, Path.GetFileName(directory)), filesAlreadyInstrumented);
         }
 
         public static void ParseCoverageResults(string coverageFile, List<ACUnitTest> tests, CoverageResults coverageResult)
