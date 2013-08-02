@@ -111,12 +111,22 @@ namespace AutoCover
 
         public static IEnumerable<ACUnitTest> GetTests(string projectName, string projectOutputFile)
         {
-            var appDomain = AppDomain.CreateDomain("AppCoverDomain", null, new AppDomainSetup { ApplicationBase = Environment.CurrentDirectory });
-            var boundary = (AppCoverBoundaryObject)appDomain.CreateInstanceAndUnwrap(typeof(AppCoverBoundaryObject).Assembly.FullName, typeof(AppCoverBoundaryObject).FullName);
-            boundary.ParseTests(new AppDomainArgs { ProjectOutputFile = projectOutputFile, ProjectName = projectName });
-            var tests = boundary.Tests;
-            AppDomain.Unload(appDomain);
-            return tests;
+            for (int i = 0; i < 50; i++) // Strange hack to avoid the InvalidCastException in CreateInstanceAndUnwrap
+            {
+                var appDomain = AppDomain.CreateDomain("AppCoverDomain", null, new AppDomainSetup { ApplicationBase = Environment.CurrentDirectory });
+                try
+                {
+                    var boundary = (AppCoverBoundaryObject)appDomain.CreateInstanceAndUnwrap(typeof(AppCoverBoundaryObject).Assembly.FullName, typeof(AppCoverBoundaryObject).FullName);
+                    boundary.ParseTests(new AppDomainArgs { ProjectOutputFile = projectOutputFile, ProjectName = projectName });
+                    return boundary.Tests;
+                }
+                catch { }
+                finally
+                {
+                    AppDomain.Unload(appDomain);
+                }
+            }
+            return new List<ACUnitTest>();
         }
     }
 
