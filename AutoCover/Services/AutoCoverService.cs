@@ -28,7 +28,7 @@ using Microsoft.VisualStudio.Shell;
 
 namespace AutoCover
 {
-    public static class AutoCoverEngine
+    public static class AutoCoverService
     {
         private static readonly ConcurrentBag<AnalysisItem> _pendingFiles = new ConcurrentBag<AnalysisItem>();
 
@@ -104,7 +104,7 @@ namespace AutoCover
                             Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Instrumenting, project.Name));
                             var projectOutputFile = CodeCoverageService.Instrument(solution, project);
                             var ta = new TestAssembly { Name = project.Name, DllPath = projectOutputFile };
-                            suggestedTests.AddRange(MSTestRunner.GetTests(project.Name, projectOutputFile));
+                            suggestedTests.AddRange(MSTestService.GetTests(project.Name, projectOutputFile));
                             testAssemblies.Add(ta);
                         }
                     }
@@ -130,7 +130,7 @@ namespace AutoCover
                     Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Testing, string.Format("{0} ({1} tests)", testAssembly.Name, testAssembly.Tests.Count)));
                     var projectOutputFile = testAssembly.DllPath;
                     var testResultsFile = Path.Combine(Path.GetDirectoryName(projectOutputFile), "test.trx");
-                    MSTestRunner.Run(processRunner, projectOutputFile, testResultsFile, items.First().TestSettingsPath, testAssembly.Tests, _testResults);
+                    MSTestService.Run(processRunner, projectOutputFile, testResultsFile, items.First().TestSettingsPath, testAssembly.Tests, _testResults);
                     Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Testing, string.Format("{0} (parsing coverage results)", testAssembly.Name)));
                     var coverageFile = Path.Combine(Path.GetDirectoryName(projectOutputFile), "coverage.results.xml");
                     CodeCoverageService.ParseCoverageResults(coverageFile, tests, _coverageResults);

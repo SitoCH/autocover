@@ -175,7 +175,7 @@ namespace AutoCover
         private void RefreshSpans(ITextSnapshot snapshot)
         {
             var document = snapshot.TextBuffer.GetTextDocument();
-            if (document == null || document.LastContentModifiedTime > AutoCoverEngine.LastCheck || SettingsService.Settings.DisableRowHighlighting)
+            if (document == null || document.LastContentModifiedTime > AutoCoverService.LastCheck || SettingsService.Settings.DisableRowHighlighting)
             {
                 _currentPassedSpans = new NormalizedSnapshotSpanCollection();
                 _currentFailedSpans = new NormalizedSnapshotSpanCollection();
@@ -186,7 +186,7 @@ namespace AutoCover
             var failedSpans = new List<SnapshotSpan>();
             foreach (var line in snapshot.Lines)
             {
-                var status = AutoCoverEngine.GetLineResult(_filePath, line.LineNumber + 1);
+                var status = AutoCoverService.GetLineResult(_filePath, line.LineNumber + 1);
                 if (status == CodeCoverageResult.Passed)
                     passedSpans.Add(GetExactStart(snapshot, line));
                 else if (status == CodeCoverageResult.Failed)

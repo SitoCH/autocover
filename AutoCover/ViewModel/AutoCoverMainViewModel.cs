@@ -57,7 +57,7 @@ namespace AutoCover
             set
             {
                 SettingsService.Settings.EnableAutoCover = value;
-                AutoCoverEngine.Reset();
+                AutoCoverService.Reset();
                 RaisePropertyChanged("IsAutoCoverEnabled");
             }
         }

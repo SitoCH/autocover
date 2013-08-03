@@ -110,7 +110,7 @@ namespace SimoneGrignola.AutoCover
         {
             Trace.WriteLine(string.Format(CultureInfo.CurrentCulture, "Entering Initialize() of: {0}", this.ToString()));
             base.Initialize();
-            AutoCoverEngine.InitEngine();
+            AutoCoverService.InitEngine();
             // Add our command handlers for menu (commands must exist in the .vsct file)
             var mcs = GetService(typeof(IMenuCommandService)) as OleMenuCommandService;
             if (null != mcs)
@@ -143,14 +143,14 @@ namespace SimoneGrignola.AutoCover
 
         void _solutionEvents_AfterClosing()
         {
-            AutoCoverEngine.Reset();
+            AutoCoverService.Reset();
             Messenger.Default.Send(new SolutionStatusChangedMessage(SolutionStatus.Closed));
         }
 
         void _solutionEvents_Opened()
         {
             SettingsService.LoadSettingsForSolution(_DTE.Solution);
-            AutoCoverEngine.Reset();
+            AutoCoverService.Reset();
             Messenger.Default.Send(new SolutionStatusChangedMessage(SolutionStatus.Opened));
         }
 
@@ -174,7 +174,7 @@ namespace SimoneGrignola.AutoCover
                 var config = tmi.GetTestRunConfiguration(tmi.ActiveTestRunConfigurationId);
                 if (config != null)
                 {
-                    AutoCoverEngine.AddDocument(_DTE.Solution, document, config.Storage);
+                    AutoCoverService.AddDocument(_DTE.Solution, document, config.Storage);
                 }
             }
         }

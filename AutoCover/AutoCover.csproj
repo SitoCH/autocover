@@ -143,12 +143,12 @@
     <Compile Include="Model\TestAssembly.cs" />
     <Compile Include="Model\TestResults.cs" />
     <Compile Include="Tagger\CodeCoverageTaggerProvider.cs" />
-    <Compile Include="Utils\CodeCoverageService.cs" />
+    <Compile Include="Services\CodeCoverageService.cs" />
     <Compile Include="Utils\FileUtils.cs" />
     <Compile Include="Utils\Messages.cs" />
-    <Compile Include="Utils\MSTestRunner.cs" />
+    <Compile Include="Services\MSTestService.cs" />
     <Compile Include="Utils\ProcessRunner.cs" />
-    <Compile Include="Utils\SettingsService.cs" />
+    <Compile Include="Services\SettingsService.cs" />
     <Compile Include="ViewModel\AutoCoverMainViewModel.cs" />
     <Compile Include="View\AutoCoverMainControl.xaml.cs">
       <DependentUpon>AutoCoverMainControl.xaml</DependentUpon>
@@ -164,7 +164,7 @@
     <Compile Include="AutoCoverPackage.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="PkgCmdID.cs" />
-    <Compile Include="Utils\AutoCoverEngine.cs" />
+    <Compile Include="Services\AutoCoverService.cs" />
     <Compile Include="Model\UnitTestResult.cs" />
     <Compile Include="Utils\Utils.cs" />
     <Compile Include="Model\Vstst.cs" />

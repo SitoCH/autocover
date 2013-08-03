@@ -28,7 +28,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace AutoCover
 {
-    public static class MSTestRunner
+    public static class MSTestService
     {
         public static void Run(ProcessRunner processRunner, string projectOutputFile, string testResultsFile, string testSettingsPath, List<ACUnitTest> tests, TestResults testResults)
         {
