@@ -23,10 +23,8 @@ using System.Text;
 using System.IO;
 using System.Xml;
 using System.Xml.Serialization;
-using Microsoft.VisualStudio.TestTools.Common;
 using System.Reflection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System.Security.Policy;
 
 namespace AutoCover
 {
@@ -68,7 +66,7 @@ namespace AutoCover
             var testListFile = Path.Combine(Path.GetDirectoryName(testResultsFile), "autocover.vsmdi");
             File.WriteAllText(testListFile, testsToRun.ToString());
 
-            var output = runner.Run(" /nologo /resultsfile:\"" + testResultsFile + "\" /testsettings:\"" + testSettingsPath + "\"  /testmetadata:\"" + testListFile + "\" /testlist:AutoCover");
+            runner.Run(" /nologo /resultsfile:\"" + testResultsFile + "\" /testsettings:\"" + testSettingsPath + "\"  /testmetadata:\"" + testListFile + "\" /testlist:AutoCover");
         }
 
         private static void ParseTests(string testResultsFile, TestResults testResults)
@@ -111,41 +109,56 @@ namespace AutoCover
 
         public static IEnumerable<ACUnitTest> GetTests(string projectName, string projectOutputFile)
         {
-            for (int i = 0; i < 50; i++) // Strange hack to avoid the InvalidCastException in CreateInstanceAndUnwrap
+            var appDomain = AppDomain.CreateDomain("AppCoverDomain", null, new AppDomainSetup { ApplicationBase = Environment.CurrentDirectory, LoaderOptimization = LoaderOptimization.MultiDomainHost });
+            try
             {
-                var appDomain = AppDomain.CreateDomain("AppCoverDomain", null, new AppDomainSetup { ApplicationBase = Environment.CurrentDirectory });
-                try
+                var obj = new AppCoverBoundaryObject(projectName, projectOutputFile);
+                appDomain.DoCallBack(obj.ParseTests);
+                var serializer = new XmlSerializer(typeof(List<ACUnitTest>));
+                using (var textWriter = new StreamReader(projectOutputFile + ".xml"))
                 {
-                    var boundary = (AppCoverBoundaryObject)appDomain.CreateInstanceAndUnwrap(typeof(AppCoverBoundaryObject).Assembly.FullName, typeof(AppCoverBoundaryObject).FullName);
-                    boundary.ParseTests(new AppDomainArgs { ProjectOutputFile = projectOutputFile, ProjectName = projectName });
-                    return boundary.Tests;
-                }
-                catch { }
-                finally
-                {
-                    AppDomain.Unload(appDomain);
+                    return (IEnumerable<ACUnitTest>)serializer.Deserialize(textWriter);
                 }
             }
-            return new List<ACUnitTest>();
+            catch
+            {
+                return new List<ACUnitTest>();
+            }
+            finally
+            {
+                AppDomain.Unload(appDomain);
+            }
         }
     }
 
-    public class AppCoverBoundaryObject : MarshalByRefObject
+    [Serializable]
+    class AppCoverBoundaryObject
     {
-        private AppDomainArgs _ada;
-        public IEnumerable<ACUnitTest> Tests { get; private set; }
+        private readonly string _projectName;
+        private readonly string _projectOutputFile;
 
-        public void ParseTests(AppDomainArgs ada)
+        public AppCoverBoundaryObject(string projectName, string projectOutputFile)
         {
-            _ada = ada;
+            _projectName = projectName;
+            _projectOutputFile = projectOutputFile;
+        }
+
+        public void ParseTests()
+        {
             AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
-            var assemlby = AppDomain.CurrentDomain.Load(File.ReadAllBytes(ada.ProjectOutputFile));
-            Tests = assemlby.GetTypes()
-                 .SelectMany(x => x.GetMethods())
+            var assemlby = AppDomain.CurrentDomain.Load(File.ReadAllBytes(_projectOutputFile));
+            var tests = assemlby.GetTypes().SelectMany(x => x.GetMethods())
                  .Where(x => x.IsDefined(typeof(TestMethodAttribute), true))
                  .Select(method => new { method, humanReadableId = string.Format("{0}.{1}.{2}", method.DeclaringType.Namespace, method.DeclaringType.Name, method.Name) })
                  .Select(@t => new { @t, id = @t.humanReadableId.GuidFromString() })
-                 .Select(@t => new ACUnitTest { Id = @t.id, HumanReadableId = @t.@t.humanReadableId, Name = @t.@t.method.Name, ProjectName = ada.ProjectName }).ToList();
+                 .Select(@t => new ACUnitTest { Id = @t.id, HumanReadableId = @t.@t.humanReadableId, Name = @t.@t.method.Name, ProjectName = _projectName }).ToList();
+
+            var serializer = new XmlSerializer(typeof(List<ACUnitTest>));
+            using (var textWriter = new StreamWriter(_projectOutputFile + ".xml"))
+            {
+                serializer.Serialize(textWriter, tests);
+            }
+
             AppDomain.CurrentDomain.AssemblyResolve -= CurrentDomain_AssemblyResolve;
         }
 
@@ -156,7 +169,7 @@ namespace AutoCover
             if (pos > -1)
                 assemblyName = assemblyName.Substring(0, pos);
 
-            var basePath = Path.GetDirectoryName(_ada.ProjectOutputFile);
+            var basePath = Path.GetDirectoryName(_projectOutputFile);
             var dllPath = Path.Combine(basePath, assemblyName + ".dll");
             if (File.Exists(dllPath))
                 return Assembly.LoadFile(dllPath);
@@ -166,9 +179,5 @@ namespace AutoCover
             return null;
         }
     }
-    public class AppDomainArgs : MarshalByRefObject
-    {
-        public string ProjectOutputFile { get; set; }
-        public string ProjectName { get; set; }
-    }
+
 }
