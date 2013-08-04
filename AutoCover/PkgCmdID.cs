@@ -20,7 +20,7 @@
 // MUST match PkgCmdID.h
 using System;
 
-namespace SimoneGrignola.AutoCover
+namespace AutoCover
 {
     static class PkgCmdIDList
     {

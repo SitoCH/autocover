@@ -53,17 +53,38 @@ namespace AutoCover
             {
                 var dte = (DTE)Package.GetGlobalService(typeof(DTE));
                 var items = TakeAllPendingItems().Where(x => x.Solution.FullName == dte.Solution.FullName).Distinct().ToList();
-                ProcessDocuments(dte.Solution, items);
-                System.Threading.Thread.Sleep(2500);
+                if (ShouldProcessDocuments(dte, items))
+                {
+                    ProcessDocuments(dte.Solution, items);
+                }
+                else
+                {
+                    System.Threading.Thread.Sleep(2500);
+                }
             }
+        }
+
+        private static bool ShouldProcessDocuments(DTE dte, ICollection<AnalysisItem> items)
+        {
+            if (items.Count == 0) // There are no valid documents to process
+                return false;
+            if (!SettingsService.Settings.EnableAutoCover) // AutoCover isn't enabled on this solution
+                return false;
+            if (dte.Solution == null) // No solution found
+                return false;
+            if (dte.Solution.SolutionBuild.BuildState == vsBuildState.vsBuildStateInProgress) // Visual Studio is already building something
+                return false;
+            if (dte.Debugger != null && dte.Debugger.DebuggedProcesses.Count > 0) // The debugger is attched to a process
+                return false;
+            return true;
         }
 
         private static IEnumerable<AnalysisItem> TakeAllPendingItems()
         {
             var files = new List<AnalysisItem>();
-            AnalysisItem item;
             while (!_pendingFiles.IsEmpty)
             {
+                AnalysisItem item;
                 if (_pendingFiles.TryTake(out item))
                 {
                     files.Add(item);
@@ -74,16 +95,6 @@ namespace AutoCover
 
         private static void ProcessDocuments(Solution solution, List<AnalysisItem> items)
         {
-            if (items.Count == 0)
-                return;
-
-            if (!SettingsService.Settings.EnableAutoCover)
-            {
-                Messenger.Default.Send(new TestsResultsMessage(new List<ACUnitTest>()));
-                Messenger.Default.Send(new RefreshTaggerMessage());
-                return;
-            }
-
             try
             {
                 Messenger.Default.Send(new AutoCoverEngineStatusMessage(AutoCoverEngineStatus.Building));
@@ -145,7 +156,7 @@ namespace AutoCover
             }
         }
 
-        private static List<ACUnitTest> FilterTests(string documentPath, TestResults testsResults, CoverageResults coverageResults, List<ACUnitTest> suggestedTests)
+        private static IEnumerable<ACUnitTest> FilterTests(string documentPath, TestResults testsResults, CoverageResults coverageResults, List<ACUnitTest> suggestedTests)
         {
             if (testsResults.GetTestResults().Count == 0)
                 return suggestedTests;
@@ -173,6 +184,8 @@ namespace AutoCover
             TakeAllPendingItems();
             _coverageResults.Reset();
             _testResults.Reset();
+            Messenger.Default.Send(new TestsResultsMessage(new List<ACUnitTest>()));
+            Messenger.Default.Send(new RefreshTaggerMessage());
         }
     }
 

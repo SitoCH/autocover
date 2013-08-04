@@ -73,14 +73,12 @@ namespace AutoCover
             }
         }
 
-
-
         public List<ACUnitTest> Tests
         {
             get { return _tests; }
             set
             {
-                _tests = value != null ? value.OrderByDescending(x => x.Result).ToList() : value;
+                _tests = value != null ? value.OrderByDescending(x => x.Result).ToList() : null;
                 RaisePropertyChanged("Tests");
             }
         }

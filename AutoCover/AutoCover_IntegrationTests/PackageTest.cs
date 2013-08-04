@@ -2,6 +2,7 @@
 using System.Text;
 using System.Collections.Generic;
 using System.Linq;
+using AutoCover;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.VSSDK.Tools.VsIdeTesting;
 using Microsoft.VisualStudio.Shell.Interop;
@@ -49,7 +50,7 @@ namespace AutoCover_IntegrationTests
 
                 //Validate package load
                 IVsPackage package;
-                Guid packageGuid = new Guid(SimoneGrignola.AutoCover.GuidList.guidAutoCoverPkgString);
+                Guid packageGuid = new Guid(GuidList.guidAutoCoverPkgString);
                 Assert.IsTrue(0 == shellService.LoadPackage(ref packageGuid, out package));
                 Assert.IsNotNull(package, "Package failed to load");
 

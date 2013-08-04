@@ -17,25 +17,19 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
-using System.Linq;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.ComponentModel.Design;
-using Microsoft.VisualStudio.TestTools.Common;
 using Microsoft.VisualStudio.TestTools.Vsip;
-using Microsoft.Win32;
-using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell.Interop;
-using Microsoft.VisualStudio.OLE.Interop;
 using Microsoft.VisualStudio.Shell;
 using EnvDTE;
 using EnvDTE80;
 using AutoCover;
-using System.Collections.Generic;
 using GalaSoft.MvvmLight.Messaging;
 
-namespace SimoneGrignola.AutoCover
+namespace AutoCover
 {
     /// <summary>
     /// This is the class that implements the package exposed by this assembly.
@@ -161,13 +155,6 @@ namespace SimoneGrignola.AutoCover
 
         void DocumentEvents_DocumentSaved(Document document)
         {
-            if (_DTE.Solution == null)
-                return;
-            if (_DTE.Solution.SolutionBuild.BuildState == vsBuildState.vsBuildStateInProgress)
-                return;
-            if (_DTE.Debugger.DebuggedProcesses.Count > 0)
-                return;
-
             var tmi = _testManagement.TmiInstance;
             if (tmi != null)
             {
