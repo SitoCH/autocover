@@ -27,6 +27,7 @@
 //
 
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using Microsoft.Cci.Pdb;
@@ -35,34 +36,37 @@ using Mono.Cecil.Cil;
 
 namespace Coverage.Common
 {
-	/// <summary>
-	/// Reads Microsoft pdb files using internal classes of Pdb2Mdb converter tool
-	/// </summary>
-	public class PdbReaderProxy : IProgramDatabaseReader
-	{
-//		private Dictionary<uint, PdbFunction> _pdbFunctions;
+    /// <summary>
+    /// Reads Microsoft pdb files using internal classes of Pdb2Mdb converter tool
+    /// </summary>
+    public class PdbReaderProxy : IProgramDatabaseReader
+    {
+        //		private Dictionary<uint, PdbFunction> _pdbFunctions;
         private ISymbolReader _reader;
 
-		public PdbReaderProxy(string assemblyFilePath)
-		{
-			Initialize(assemblyFilePath);
-		}
+        public PdbReaderProxy(string assemblyFilePath)
+        {
+            Initialize(assemblyFilePath);
+        }
 
-		public void Initialize(string assemblyFilePath)
-		{
-			_reader = new Mono.Cecil.Pdb.PdbReaderProvider().GetSymbolReader(null, assemblyFilePath);
-		    var res = (bool) _reader.GetType().GetMethod("PopulateFunctions", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(_reader, new object[0]);
-//            _pdbFunctions = PdbFile.LoadFunctions(pdbFileStream, true).ToDictionary(func => func.token, func => func);
-		}
+        public void Initialize(string assemblyFilePath)
+        {
+            using (var st = new FileStream(assemblyFilePath.Substring(0, assemblyFilePath.Length - 3) + "pdb", FileMode.Open))
+            {
+                _reader = new Mono.Cecil.Pdb.PdbReaderProvider().GetSymbolReader(null, st);
+                var res = (bool)_reader.GetType().GetMethod("PopulateFunctions", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(_reader, new object[0]);
+            }
+            //            _pdbFunctions = PdbFile.LoadFunctions(pdbFileStream, true).ToDictionary(func => func.token, func => func);
+        }
 
-		/// <summary>
-		/// Retrieves source code segment locations with corresponding offsets in compiled assembly
-		/// </summary>
-		/// <param name="methodDef">Method definition</param>
-		/// <returns>Dictionary: Key is an instruction offset, Value - source code segment location</returns>
-		public IDictionary<int, CodeSegment> GetSegmentsByMethod(MethodDefinition methodDef)
-		{
-		    var symbols = new MethodSymbols(methodDef.MetadataToken);
+        /// <summary>
+        /// Retrieves source code segment locations with corresponding offsets in compiled assembly
+        /// </summary>
+        /// <param name="methodDef">Method definition</param>
+        /// <returns>Dictionary: Key is an instruction offset, Value - source code segment location</returns>
+        public IDictionary<int, CodeSegment> GetSegmentsByMethod(MethodDefinition methodDef)
+        {
+            var symbols = new MethodSymbols(methodDef.MetadataToken);
             _reader.Read(symbols);
 
             return symbols.Instructions.ToDictionary(
@@ -75,6 +79,6 @@ namespace Coverage.Common
                     inst.SequencePoint.Document.Url
                 )
             );
-		}
-	}
+        }
+    }
 }

@@ -36,34 +36,34 @@ using Coverage.Report;
 
 namespace Coverage
 {
-	public static class Runner
-	{
-		public static void Main(string[] args)
-		{
-			Configuration.Initialize();
+    public static class Runner
+    {
+        public static void Main(string[] args)
+        {
+            Configuration.Initialize();
 
-			var assemblies = new List<string>();
+            var assemblies = new List<string>();
 
-			for (var i = 0; i < args.Length; i++)
-			{
-				switch (args[i])
-				{
-					case "//x"://next argument is a coverage file name
-				        i++;
-						if (i < args.Length)
-							Configuration.CoverageFile = args[i];
+            for (var i = 0; i < args.Length; i++)
+            {
+                switch (args[i])
+                {
+                    case "//x"://next argument is a coverage file name
+                        i++;
+                        if (i < args.Length)
+                            Configuration.CoverageFile = args[i];
                         break;
                     case "//r":
-						Configuration.NamingMode = Configuration.NamingModes.BackupOriginals;
+                        Configuration.NamingMode = Configuration.NamingModes.BackupOriginals;
                         break;
                     case "//a":
                         i++;
                         if (i < args.Length)
                             assemblies.AddRange(args[i].Split(';').SelectMany(ResolveFilesByMask));
-				        break;
+                        break;
                     case "//ea":
                         ExtractFilter(args, i++, NameFilter.FilterTypes.AttributeFilter);
-				        break;
+                        break;
                     case "//et":
                         ExtractFilter(args, i++, NameFilter.FilterTypes.TypeFilter);
                         break;
@@ -78,8 +78,8 @@ namespace Coverage
                         break;
                     case "/?":
                     case "/h":
-						ShowHelp();
-						return;
+                        ShowHelp();
+                        return;
                     default:
                         if (!args[i].StartsWith("/") && i < args.Length - 1)
                         {
@@ -93,25 +93,8 @@ namespace Coverage
                             i = args.Length;
                         }
                         break;
-				}
-			}
-
-			var executor = new Executor(assemblies.ToArray());
-			executor.Execute(new CompositeVisitor(new ReportVisitor(), new InstrumentorVisitor()));
-			
-			if(string.IsNullOrEmpty(Configuration.Executable))
-				return;
-
-            AppDomain.CurrentDomain.ExecuteAssembly(Configuration.Executable, Configuration.ExecutableArgs);
-
-		    Configuration.CleanupCallback();
-		}
-
-        public static void Run(string rootPath, IEnumerable<string> assemblies)
-        {
-            Configuration.Initialize();
-            Configuration.NamingMode = Configuration.NamingModes.BackupOriginals;
-            Configuration.CoverageFile = Path.Combine(rootPath, "coverage.xml");
+                }
+            }
 
             var executor = new Executor(assemblies.ToArray());
             executor.Execute(new CompositeVisitor(new ReportVisitor(), new InstrumentorVisitor()));
@@ -124,34 +107,62 @@ namespace Coverage
             Configuration.CleanupCallback();
         }
 
-	    private static void ExtractFilter(string[] args, int i, NameFilter.FilterTypes filterType)
-	    {
-	        if (i >= args.Length)
+        public static void Run(string rootPath, ICollection<string> assembliesToInstrument, ICollection<string> assembliesToReport)
+        {
+            Configuration.Initialize();
+            Configuration.NamingMode = Configuration.NamingModes.BackupOriginals;
+            Configuration.CoverageFile = Path.Combine(rootPath, "coverage.xml");
+
+            if (assembliesToInstrument.SequenceEqual(assembliesToReport))
+            {
+                var executor = new Executor(assembliesToInstrument.ToArray());
+                executor.Execute(new CompositeVisitor(new ReportVisitor(), new InstrumentorVisitor()));
+            }
+            else
+            {
+                var executor = new Executor(assembliesToInstrument.ToArray());
+                executor.Execute(new InstrumentorVisitor());
+
+                executor = new Executor(assembliesToReport.ToArray());
+                executor.Execute(new ReportVisitor());
+            }
+
+            if (string.IsNullOrEmpty(Configuration.Executable))
+                return;
+
+            AppDomain.CurrentDomain.ExecuteAssembly(Configuration.Executable, Configuration.ExecutableArgs);
+
+            Configuration.CleanupCallback();
+        }
+
+        private static void ExtractFilter(string[] args, int i, NameFilter.FilterTypes filterType)
+        {
+            if (i >= args.Length)
                 return;
 
             Configuration.NameFilters
                 .AddRange(args[i + 1]
                 .Split(';')
                 .Select(arg => new NameFilter { FilteredName = arg, Type = filterType }));
-	    }
+        }
 
-		private static IEnumerable<string> ResolveFilesByMask(string filePathMask)
-		{
-		    var dir = Path.GetDirectoryName(filePathMask);
+        private static IEnumerable<string> ResolveFilesByMask(string filePathMask)
+        {
+            var dir = Path.GetDirectoryName(filePathMask);
             dir = string.IsNullOrEmpty(dir) ? Environment.CurrentDirectory : dir;
-			var files = Directory.GetFiles(dir, Path.GetFileName(filePathMask));
+            var files = Directory.GetFiles(dir, Path.GetFileName(filePathMask));
 
-			var acceptedFiles = files.Where(
-					file => (Path.GetExtension(file) == ".dll" || Path.GetExtension(file) == ".exe")
+            var acceptedFiles = files.Where(
+                    file => (Path.GetExtension(file) == ".dll" || Path.GetExtension(file) == ".exe")
                         && (!file.EndsWith(".backup.dll")) && (!file.EndsWith(".backup.exe"))
                         && File.Exists(file)
-				);
-		    return acceptedFiles;
-		}
+                );
+            return acceptedFiles;
+        }
 
-		private static void ShowHelp()
-		{
-			Console.WriteLine(
+        private static void ShowHelp()
+        {
+            Console.WriteLine(
 @"Usage: coverage.exe {<assemblyPaths>} [{-[<ExclusionType>:]NameFilter}] [<commands> [<commandArgs>]]
 
 Exclusion Types:
@@ -181,6 +192,6 @@ Example command line to launch instrumenting:
     myapp.bak.exe and myapp.lib.bak.dll respectively. Members marked by attributes that contain
     'CodeGeneratedAttribute' in their name as well as types that contain 'Test' in their full names
     will be excluded from report");
-		}
-	}
+        }
+    }
 }

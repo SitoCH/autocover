@@ -198,13 +198,7 @@ namespace AutoCover
 
         private static SnapshotSpan GetExactStart(ITextSnapshot snapshot, ITextSnapshotLine line)
         {
-            int pos = 0;
-            foreach (var letter in line.GetText())
-            {
-                if (letter != ' ' && letter != '\t')
-                    break;
-                pos++;
-            }
+            var pos = line.GetText().TakeWhile(letter => letter == ' ' || letter == '\t').Count();
             return new SnapshotSpan(new SnapshotPoint(snapshot, line.Extent.Start.Position + pos), line.Extent.Length - pos);
         }
     }
