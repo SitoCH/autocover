@@ -47,8 +47,8 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Revision and Build Numbers 
 // by using the '*' as shown below:
 
-[assembly: AssemblyVersion("0.0.1.00803")]
-[assembly: AssemblyFileVersion("0.0.1.00803")]
+[assembly: AssemblyVersion("0.0.2.00804")]
+[assembly: AssemblyFileVersion("0.0.2.00804")]
 
 [assembly: InternalsVisibleTo("AutoCover_IntegrationTests, PublicKey=002400000480000094000000060200000024000052534131000400000100010039bb9dabcf3b6f6439693699b9d92b586763152704db3d046439c8a0d1b6a922081123c09ef19d085974217774d1315ee744a8a4607c94c4bca8b07ccf3a5540151821f256b2a6443b7e48fcc55a3d9536686de8e740f8d49ad9628ca1e933cc7b4a41c9d138fca3156eaf1426231d40e75214426970fb719e39e5fff538459a")]
 [assembly: InternalsVisibleTo("AutoCover_UnitTests, PublicKey=002400000480000094000000060200000024000052534131000400000100010039bb9dabcf3b6f6439693699b9d92b586763152704db3d046439c8a0d1b6a922081123c09ef19d085974217774d1315ee744a8a4607c94c4bca8b07ccf3a5540151821f256b2a6443b7e48fcc55a3d9536686de8e740f8d49ad9628ca1e933cc7b4a41c9d138fca3156eaf1426231d40e75214426970fb719e39e5fff538459a")]
