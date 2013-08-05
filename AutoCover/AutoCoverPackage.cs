@@ -102,7 +102,7 @@ namespace AutoCover
         /// </summary>
         protected override void Initialize()
         {
-            Trace.WriteLine(string.Format(CultureInfo.CurrentCulture, "Entering Initialize() of: {0}", this.ToString()));
+            Trace.WriteLine(string.Format(CultureInfo.CurrentCulture, "Entering Initialize() of: {0}", this));
             base.Initialize();
             AutoCoverService.InitEngine();
             // Add our command handlers for menu (commands must exist in the .vsct file)
