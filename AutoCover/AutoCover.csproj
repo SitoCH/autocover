@@ -142,6 +142,7 @@
     <Compile Include="Model\CoverageResults.cs" />
     <Compile Include="Model\TestAssembly.cs" />
     <Compile Include="Model\TestResults.cs" />
+    <Compile Include="Services\VsOutputService.cs" />
     <Compile Include="Tagger\CodeCoverageTaggerProvider.cs" />
     <Compile Include="Services\CodeCoverageService.cs" />
     <Compile Include="Utils\FileUtils.cs" />
@@ -192,6 +193,7 @@
   <ItemGroup>
     <VSCTCompile Include="AutoCover.vsct">
       <ResourceName>Menus.ctmenu</ResourceName>
+      <SubType>Designer</SubType>
     </VSCTCompile>
   </ItemGroup>
   <ItemGroup>
