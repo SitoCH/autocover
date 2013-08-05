@@ -42,7 +42,7 @@ namespace AutoCover
             var filesAlreadyInstrumented = new HashSet<string>();
             SmartCopy(dllsPath, newPath, filesAlreadyInstrumented);
             var assemblies = GetAssemblies(newPath).ToList();
-            Runner.Run(newPath, assemblies.Where(x => !filesAlreadyInstrumented.Contains(x)).ToList(), assemblies.Select(x => Path.ChangeExtension(x, "backup_dll")).ToList());
+            Runner.Run(newPath, assemblies.Where(x => !filesAlreadyInstrumented.Contains(x)).ToList(), assemblies.Select(x => Path.ChangeExtension(x, "backup_" + Path.GetExtension(x).Substring(1))).ToList());
             var fileName = project.Properties.Item("OutputFileName").Value.ToString();
             return Path.Combine(newPath, fileName);
         }
