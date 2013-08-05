@@ -83,7 +83,7 @@ namespace AutoCover
                 }
                 catch (Exception) { }
             }
-            return fi.IsReadOnly;
+            return !fi.IsReadOnly;
         }
 
         private static void SmartCopy(string sourceDir, string targetDir, ICollection<string> filesAlreadyInstrumented)
