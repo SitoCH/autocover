@@ -56,8 +56,8 @@ namespace AutoCover
         private static string GetSettingsPath(Solution solution)
         {
             var solutionPath = Path.GetDirectoryName(solution.FullName);
-            var settingsPath = Path.Combine(solutionPath, "_AutoCover", "autocover.settings");
-            return settingsPath;
+            var settingsFileName = Path.GetFileNameWithoutExtension(solution.FullName) + ".acsettings";
+            return Path.Combine(solutionPath, "_AutoCover", settingsFileName);
         }
 
         public static void UnloadSettings(Solution solution)

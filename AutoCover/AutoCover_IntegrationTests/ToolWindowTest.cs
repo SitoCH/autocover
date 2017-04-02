@@ -6,6 +6,7 @@ using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VsSDK.IntegrationTestLibrary;
 using Microsoft.VSSDK.Tools.VsIdeTesting;
+using AutoCover;
 
 namespace AutoCover_IntegrationTests
 {
@@ -42,12 +43,12 @@ namespace AutoCover_IntegrationTests
         {
             UIThreadInvoker.Invoke((ThreadInvoker)delegate()
             {
-                CommandID toolWindowCmd = new CommandID(SimoneGrignola.AutoCover.GuidList.guidAutoCoverCmdSet, (int)SimoneGrignola.AutoCover.PkgCmdIDList.cmdidAutoCover);
+                CommandID toolWindowCmd = new CommandID(GuidList.guidAutoCoverCmdSet, (int)PkgCmdIDList.cmdidAutoCover);
 
                 TestUtils testUtils = new TestUtils();
                 testUtils.ExecuteCommand(toolWindowCmd);
 
-                Assert.IsTrue(testUtils.CanFindToolwindow(new Guid(SimoneGrignola.AutoCover.GuidList.guidToolWindowPersistanceString)));
+                Assert.IsTrue(testUtils.CanFindToolwindow(new Guid(GuidList.guidToolWindowPersistanceString)));
 
             });
         }

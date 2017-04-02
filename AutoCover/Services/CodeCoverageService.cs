@@ -19,9 +19,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using EnvDTE;
-using Microsoft.VisualStudio.TestTools.Common;
 using System.Xml.Linq;
 using System.Xml;
 using System.IO;
@@ -39,40 +37,59 @@ namespace AutoCover
             var outputPath = config.Properties.Item("OutputPath").Value.ToString();
             var dllsPath = Path.Combine(basePath, outputPath);
             var newPath = Path.Combine(solutionPath, "_AutoCover", project.Name);
-
-            SmartDelete(newPath);
+            if (Directory.Exists(newPath))
+                SmartDelete(newPath);
             var filesAlreadyInstrumented = new HashSet<string>();
             SmartCopy(dllsPath, newPath, filesAlreadyInstrumented);
-            Runner.Run(newPath, GetAssemblies(newPath).Where(x => !filesAlreadyInstrumented.Contains(x)).ToList());
+            var assemblies = GetAssemblies(newPath).ToList();
+            var assembliesToInstrument = assemblies.Where(x => !filesAlreadyInstrumented.Contains(x)).ToList();
+            var assembliesToReport = assemblies.Select(x => Path.ChangeExtension(x, "backup_" + Path.GetExtension(x).Substring(1))).ToList();
+            VsOutputService.Output(string.Format("{0} assemblies out of {1} will be instrumented.", assembliesToInstrument.Count, assembliesToReport.Count));
+            Runner.Run(newPath, assembliesToInstrument, assembliesToReport);
             var fileName = project.Properties.Item("OutputFileName").Value.ToString();
             return Path.Combine(newPath, fileName);
         }
 
-        private static void SmartDelete(string path)
+        private static void SmartDelete(string path, bool isRootPath = true)
         {
             foreach (string file in Directory.GetFiles(path))
             {
-                if (CanDeleteFile(file))
+                if (ShouldDeleteFile(file, isRootPath))
                     File.Delete(file);
             }
 
             foreach (string directory in Directory.GetDirectories(path))
-                SmartDelete(directory);
+                SmartDelete(directory, false);
 
             if (!Directory.GetDirectories(path).Any() && !Directory.GetFiles(path).Any())
                 Directory.Delete(path);
         }
 
-        private static bool CanDeleteFile(string file)
+        private static bool ShouldDeleteFile(string file, bool isRootPath)
         {
+            if (isRootPath && file.Contains("Coverage.Counter.Gen.dll"))
+                return false;
             if (file.EndsWith("backup_dll"))
+                return false;
+            if (file.EndsWith("backup_pdb"))
                 return false;
             if (file.EndsWith("dll") && File.Exists(Path.ChangeExtension(file, "backup_dll")))
                 return false;
-            return true;
+            if (file.EndsWith("pdb") && File.Exists(Path.ChangeExtension(file, "backup_pdb")))
+                return false;
+            var fi = new FileInfo(file);
+            if (fi.IsReadOnly)
+            {
+                try
+                {
+                    fi.IsReadOnly = false;
+                }
+                catch (Exception) { }
+            }
+            return !fi.IsReadOnly;
         }
 
-        public static void SmartCopy(string sourceDir, string targetDir, ICollection<string> filesAlreadyInstrumented)
+        private static void SmartCopy(string sourceDir, string targetDir, ICollection<string> filesAlreadyInstrumented)
         {
             Directory.CreateDirectory(targetDir);
             foreach (string file in Directory.GetFiles(sourceDir))
@@ -93,7 +110,7 @@ namespace AutoCover
                 SmartCopy(directory, Path.Combine(targetDir, Path.GetFileName(directory)), filesAlreadyInstrumented);
         }
 
-        public static void ParseCoverageResults(string coverageFile, List<ACUnitTest> tests, CoverageResults coverageResult)
+        public static void ParseCoverageResults(string coverageFile, IEnumerable<ACUnitTest> tests, CoverageResults coverageResult)
         {
             var testsCache = tests.ToDictionary(k => k.HumanReadableId, e => e.Id);
 

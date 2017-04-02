@@ -20,7 +20,7 @@
 // MUST match guids.h
 using System;
 
-namespace SimoneGrignola.AutoCover
+namespace AutoCover
 {
     static class GuidList
     {

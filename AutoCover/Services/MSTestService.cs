@@ -107,7 +107,7 @@ namespace AutoCover
             }
         }
 
-        public static IEnumerable<ACUnitTest> GetTests(string projectName, string projectOutputFile)
+        public static ICollection<ACUnitTest> GetTests(string projectName, string projectOutputFile)
         {
             var appDomain = AppDomain.CreateDomain("AppCoverDomain", null, new AppDomainSetup { ApplicationBase = Environment.CurrentDirectory, LoaderOptimization = LoaderOptimization.MultiDomainHost });
             try
@@ -117,7 +117,7 @@ namespace AutoCover
                 var serializer = new XmlSerializer(typeof(List<ACUnitTest>));
                 using (var textWriter = new StreamReader(projectOutputFile + ".xml"))
                 {
-                    return (IEnumerable<ACUnitTest>)serializer.Deserialize(textWriter);
+                    return (ICollection<ACUnitTest>)serializer.Deserialize(textWriter);
                 }
             }
             catch
