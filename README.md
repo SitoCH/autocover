@@ -1,6 +1,6 @@
 AutoCover is a Continuous Testing Add-in for Visual Studio. It automatically builds and tests your solution and gives feedback on which line is covered.
 
-![](Home_micro.png)
+![](docs/Preview.png)
 
 ## Functionality
 
